@@ -1,0 +1,29 @@
+{
+  "name": "quit-smoking-family",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "@vant/use": "^1.6.0",
+    "echarts": "^6.1.0",
+    "pinia": "^3.0.3",
+    "vant": "^4.9.21",
+    "vue": "^3.5.22",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.7",
+    "vitest": "^5.0.0",
+    "vue-tsc": "^3.0.8"
+  }
+}

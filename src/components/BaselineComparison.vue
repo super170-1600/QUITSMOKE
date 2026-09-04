@@ -1,0 +1,5 @@
+<script setup lang="ts">
+defineProps<{expected:number;actual:number;reduction:number|null}>()
+</script>
+<template><div class="comparison"><div class="numbers"><div><span>理论吸烟量</span><b>{{expected}} 支</b></div><div><span>实际吸烟量</span><b>{{actual}} 支</b></div></div><div class="track"><span class="expected"></span><span class="actual" :style="{width:`${expected===0?0:Math.min(actual/expected*100,100)}%`}"></span></div><p>{{reduction===null?'暂无对比':`较理论减少 ${(reduction*100).toFixed(0)}%`}}</p></div></template>
+<style scoped>.numbers{display:grid;grid-template-columns:1fr 1fr;gap:12px}.numbers div{display:flex;flex-direction:column;gap:5px}.numbers span{color:var(--text-muted);font-size:12px}.numbers b{font-size:23px}.track{position:relative;height:13px;margin-top:22px;overflow:hidden;border-radius:99px;background:#e8ece9}.track span{position:absolute;inset:0 auto 0 0;border-radius:99px}.track .expected{width:100%;background:#dce4df}.track .actual{background:linear-gradient(90deg,#6aaf7e,#398653)}.comparison p{margin:11px 0 0;color:var(--green-700);font-size:13px;font-weight:700}</style>
