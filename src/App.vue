@@ -14,4 +14,5 @@ watch(isDesktop, (desktop) => {
 })
 </script>
 
-<template><router-view /></template>
+<template><router-view v-slot="{Component,route}"><transition name="page-shift" mode="out-in"><component :is="Component" :key="route.path"/></transition></router-view></template>
+<style>.page-shift-enter-active,.page-shift-leave-active{transition:opacity .24s ease,transform .24s ease}.page-shift-enter-from{opacity:0;transform:translateY(7px)}.page-shift-leave-to{opacity:0;transform:translateY(-4px)}@media(prefers-reduced-motion:reduce){.page-shift-enter-active,.page-shift-leave-active{transition:none}}</style>

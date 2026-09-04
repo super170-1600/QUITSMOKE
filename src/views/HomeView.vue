@@ -70,19 +70,18 @@ onMounted(loadPage)
     <template v-else>
       <template v-if="familyStore.isQuitter">
         <header class="brand-row"><div><b>无烟之家</b><span>{{ familyStore.currentFamily?.name }}</span></div><van-icon name="bell" size="22" /></header>
-        <CigaretteHero :state="todayStatus==='zero'?'extinguished':todayStatus==='smoked'?'weak':'burning'" :nickname="familyStore.currentMember?.nickname" />
-        <section v-if="smokingStore.statistics" class="stat-grid">
-          <StatCard class="streak-stat" label="连续无烟" :value="`${smokingStore.statistics.currentStreak} 天`" icon="calendar-o" tone="accent" featured />
-          <StatCard label="今日" :value="todayLabel" icon="clock-o" />
-          <StatCard label="累计少吸" :value="`${smokingStore.statistics.savedCigarettes} 支`" icon="bar-chart-o" tone="borderless" />
-          <StatCard label="节省" :value="`¥${smokingStore.statistics.savedMoney.toFixed(0)}`" icon="balance-o" tone="borderless" />
-        </section>
-        <MilestoneTrack v-if="smokingStore.statistics" :days="smokingStore.statistics.currentStreak" />
+        <CigaretteHero :state="todayStatus==='zero'?'extinguished':todayStatus==='smoked'?'weak':'burning'" :nickname="familyStore.currentMember?.nickname" :streak="smokingStore.statistics?.currentStreak" />
         <button class="checkin-cta" :disabled="smokingStore.statistics?.planDays === 0" @click="router.push('/checkin')">
           <van-icon :name="smokingStore.todayCheckin ? 'edit' : 'passed'" size="23" />
           <span>{{ smokingStore.todayCheckin ? '修改今日记录' : '今日打卡' }}</span>
           <van-icon name="arrow" />
         </button>
+        <section v-if="smokingStore.statistics" class="stat-grid">
+          <StatCard class="today-stat" label="今日状态" :value="todayLabel" icon="clock-o" tone="accent" />
+          <StatCard label="累计少吸" :numeric-value="smokingStore.statistics.savedCigarettes" suffix=" 支" icon="bar-chart-o" tone="borderless" />
+          <StatCard label="节省" :numeric-value="smokingStore.statistics.savedMoney" prefix="¥" icon="balance-o" tone="borderless" />
+        </section>
+        <MilestoneTrack v-if="smokingStore.statistics" :days="smokingStore.statistics.currentStreak" />
         <div class="quick-links"><button @click="router.push('/family')"><van-icon name="like-o" /><span><b>家人鼓励</b><small>{{ encouragementCount }} 条新陪伴</small></span><van-icon name="arrow" /></button><button @click="router.push('/trend')"><van-icon name="chart-trending-o" /><span><b>查看趋势</b><small>了解近期变化</small></span><van-icon name="arrow" /></button></div>
       </template>
 
@@ -106,5 +105,5 @@ onMounted(loadPage)
 
 <style scoped>
 .home{max-width:480px;margin:auto}.brand-row{display:flex;align-items:center;justify-content:space-between;margin:3px 2px 18px}.brand-row div{display:flex;flex-direction:column}.brand-row b{color:var(--green-900);font-size:22px;letter-spacing:-.04em}.brand-row span{margin-top:2px;color:var(--text-muted);font-size:12px}.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.checkin-cta{display:flex;width:100%;align-items:center;justify-content:center;gap:10px;border:0;border-radius:19px;padding:17px 18px;margin-top:14px;background:linear-gradient(135deg,#438e58,#2e7948);box-shadow:0 10px 24px rgba(43,121,72,.22);color:#fff}.checkin-cta span{flex:1;font-size:17px;font-weight:750}.checkin-cta:disabled{background:#aabbb3;box-shadow:none}.quick-links{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.quick-links button{display:flex;align-items:center;gap:9px;border:0;border-radius:18px;padding:15px;background:#fff;box-shadow:var(--shadow);color:var(--green-700);text-align:left}.quick-links button>span{display:flex;min-width:0;flex:1;flex-direction:column}.quick-links b{color:#26352e;font-size:14px}.quick-links small{margin-top:3px;color:var(--text-muted);font-size:11px}.supporter-intro{margin-bottom:6px;padding:26px 22px;border-radius:24px;background:linear-gradient(140deg,#e5f2e8,#f9fcfa);box-shadow:var(--shadow)}.supporter-intro span{color:var(--green-700);font-size:13px;font-weight:700}.supporter-intro h1{max-width:330px;margin:9px 0 7px;font-size:28px;line-height:1.25;letter-spacing:-.04em}.supporter-intro p{margin:0;color:var(--text-muted);font-size:14px}.state{display:flex;flex-direction:column;align-items:center;gap:12px;padding:70px 20px;color:var(--text-muted)}.empty{text-align:center;color:var(--text-muted)}
-.home{position:relative}.streak-stat{grid-column:1/3}.streak-stat+*{background:linear-gradient(145deg,#fff,#f7faf8)}
+.home{position:relative}.today-stat{grid-column:1/3}.checkin-cta:not(:disabled):active,.quick-links button:active{transform:scale(.98)}
 </style>
