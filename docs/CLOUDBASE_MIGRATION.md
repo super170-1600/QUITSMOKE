@@ -267,3 +267,20 @@ VITE_CLOUDBASE_REGION=ap-shanghai
 10. 在未接入 PG realtime 前，消息发送后的显式刷新/轮询应能看到新消息。
 
 完成以上验证后，才能把 Supabase 配置从生产前端移除。
+
+## 12. CloudBase 静态网站托管与前端路由
+
+CloudBase 静态网站托管部署使用 Vue Router 的 hash 模式。生产地址中的业务路由会带有 `#`，例如：
+
+```text
+https://your-domain.example/#/login
+https://your-domain.example/#/home
+https://your-domain.example/#/family/setup
+https://your-domain.example/#/trend
+```
+
+`#` 后面的路径由浏览器和 Vue Router 处理，请求静态托管时仍然只请求站点根目录的 `index.html`。因此本项目不再依赖服务器端 SPA fallback、404 rewrite 或将所有业务路径重写到 `index.html`，直接刷新带 hash 的业务地址不会请求 `/home`、`/family/setup` 等不存在的静态对象。
+
+登录后的 `redirect` 继续作为 Vue Router query 使用，例如 `/#/login?redirect=/home`。代码只把 `/home` 交给 `router.replace()`，不手工拼接 `#`，因此不会产生双 hash URL。
+
+该调整只影响前端 URL 表现，不影响 CloudBase Auth、PostgreSQL、RLS、RPC、API adapter 或业务数据。将 `VITE_BACKEND_PROVIDER` 切回 `supabase` 时仍使用同一套 hash router；Cloudflare 或其他静态托管环境同样可直接部署，不影响后端回滚能力。URL 中出现 `#` 是预期行为。
