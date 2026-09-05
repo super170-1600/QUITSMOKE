@@ -18,7 +18,7 @@ function changeMode(mode: DisplayMode) {
 <template>
   <div class="desktop-shell">
     <header class="desktop-header">
-      <div class="brand"><span class="brand-icon"><van-icon name="like" /></span><div><b>无烟之家</b><small>{{ familyStore.currentFamily?.name ?? '家庭健康空间' }}</small></div></div>
+      <div class="brand"><span class="brand-icon"><van-icon name="like" /></span><div><b>NO SMOKING</b><small>{{ familyStore.currentFamily?.name ?? '家庭健康空间' }}</small></div></div>
       <div class="header-actions">
         <slot name="toolbar" />
         <label>显示模式</label>

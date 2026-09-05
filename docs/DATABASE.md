@@ -6,7 +6,7 @@
 
 - `profiles`：`auth.users` 的一对一公开资料扩展。Auth 用户删除时级联删除。
 - `families`：家庭主体，记录名称、唯一邀请码和创建者。
-- `family_members`：用户与家庭的多对多关系，同时保存该用户在该家庭中的 `quitter` 或 `supporter` 身份。
+- `family_members`：用户与当前家庭的成员关系，同时保存 `quitter` 或 `supporter` 身份；`user_id` 唯一，保证一个账号同时只能属于一个家庭。
 - `smoking_profiles`：用户的一对一戒烟设置，包括开始日期、每日基线、每包支数和价格。
 - `checkins`：每日打卡。`(user_id, checkin_date)` 唯一，保证每位用户每天最多一条。
 - `encouragements`：家庭内成员之间的快捷表情鼓励与旧版定向留言。
@@ -15,14 +15,14 @@
 关系简图：
 
 ```text
-auth.users 1--1 profiles 1--N family_members N--1 families
+auth.users 1--1 profiles 1--0..1 family_members N--1 families
                          1--1 smoking_profiles
                          1--N checkins
 families 1--N encouragements (from_user_id / to_user_id -> profiles)
 families 1--N messages (sender_id -> profiles; system messages have no sender)
 ```
 
-角色属于 `family_members`，而不是 `profiles`，因为同一用户未来可以在不同家庭承担不同身份。
+角色属于 `family_members`，而不是 `profiles`，因为角色描述的是用户在当前家庭中的参与方式。用户退出后可以重新加入另一家庭并重新选择身份。
 
 `checkins` 不保存 streak、累计少吸或 saved_money。这些值由基线、日期和打卡记录派生；持久化会产生重复事实，并可能在历史打卡修改后失去一致性。
 
@@ -70,7 +70,15 @@ const { data, error } = await supabase.rpc('join_family_by_invite_code', {
 })
 ```
 
-`join_family_by_invite_code` 同样只使用 `auth.uid()`，验证角色和邀请码后写入成员关系。`unique(family_id, user_id)` 与 `ON CONFLICT DO NOTHING` 使重复加入保持幂等。知道邀请码是加入该家庭的授权凭据。
+`join_family_by_invite_code` 同样只使用 `auth.uid()`，验证角色和邀请码后写入成员关系。`unique(user_id)` 从数据库层阻止一个账号同时加入多个家庭；重复加入当前家庭保持幂等，尝试加入另一个家庭会要求先退出。知道邀请码是加入该家庭的授权凭据。
+
+退出家庭：
+
+```ts
+const { data, error } = await supabase.rpc('leave_current_family')
+```
+
+`leave_current_family` 不接受 user ID，只处理 `auth.uid()` 的当前成员关系。普通成员退出只删除成员关系；创建者退出且仍有家人时，把家庭所有权移交给最早加入的剩余成员；最后一位成员退出时删除空家庭。用户自己的 `smoking_profiles` 与 `checkins` 始终保留。
 
 ## 在 Supabase 执行
 
@@ -78,6 +86,8 @@ const { data, error } = await supabase.rpc('join_family_by_invite_code', {
 2. 新建 Query，粘贴并执行 `docs/database.sql` 全文。
 3. 确认七张表、函数、trigger 和 policies 已创建。
 4. 后续修改应保留在该脚本或正式 migration 中，不要只在 Dashboard 手工修改而不回写代码库。
+
+已经部署过旧版数据库时，再执行 `docs/family_membership_patch.sql`，为现有库增加单家庭约束和安全退出 RPC。如果旧数据中某个用户已经绑定多个家庭，patch 会明确停止而不会擅自删除成员关系；应先人工确认保留哪个家庭。
 
 脚本使用 `create table if not exists`、`create or replace function`、`drop policy/trigger if exists`，可在同一结构版本上重复执行。它不是任意旧 schema 的自动升级器；已有列定义变化时仍应编写 migration。
 

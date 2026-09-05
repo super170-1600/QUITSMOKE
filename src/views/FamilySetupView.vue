@@ -22,9 +22,17 @@ function friendlyJoinError(error: unknown) {
   if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
     const message = error.message.toLowerCase()
     if (message.includes('invalid invite code')) return '没有找到这个家庭，请检查邀请码。'
-    if (message.includes('duplicate') || message.includes('already')) return '你已经加入这个家庭。'
+    if (message.includes('already belongs') || message.includes('duplicate')) return '每个账号只能加入一个家庭，请先退出当前家庭。'
   }
   return '加入失败，请稍后重试。'
+}
+
+function friendlyCreateError(error: unknown) {
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    const message = error.message.toLowerCase()
+    if (message.includes('already belongs') || message.includes('duplicate')) return '每个账号只能加入一个家庭，请先退出当前家庭。'
+  }
+  return '创建失败，请稍后重试。'
 }
 
 async function submitCreate() {
@@ -40,7 +48,7 @@ async function submitCreate() {
     await router.replace('/home')
   } catch (error: unknown) {
     console.error('创建家庭失败', error)
-    showFailToast('创建失败，请稍后重试。')
+    showFailToast(friendlyCreateError(error))
   } finally {
     submitting.value = false
   }
@@ -119,7 +127,7 @@ async function submitJoin() {
     <van-button class="submit-button" type="primary" block round size="large" :loading="submitting" :disabled="submitting" @click="mode === 'create' ? submitCreate() : submitJoin()">
       {{ actionLabel }}
     </van-button>
-    <p class="privacy-note"><van-icon name="shield-o" />家庭记录仅对同一家庭成员可见</p>
+    <p class="privacy-note"><van-icon name="shield-o" />每个账号同时只能加入一个家庭</p>
   </main>
 </template>
 

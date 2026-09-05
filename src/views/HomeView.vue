@@ -135,7 +135,7 @@ onBeforeUnmount(() => messageStore.stopRealtime())
     <section v-else-if="loadFailed" class="card state"><span>暂时无法读取数据。</span><van-button plain round type="primary" @click="loadPage">重新加载</van-button></section>
     <template v-else>
       <template v-if="familyStore.isQuitter">
-        <header class="brand-row"><div><b>无烟之家</b><span>{{ familyStore.currentFamily?.name }}</span></div><button class="profile-shortcut" aria-label="打开我的页面" @click="router.push('/profile')">{{ profileInitial }}</button></header>
+        <header class="brand-row"><div><b>NO SMOKING</b><span>{{ familyStore.currentFamily?.name }}</span></div><button class="profile-shortcut" aria-label="打开我的页面" @click="router.push('/profile')">{{ profileInitial }}</button></header>
         <CigaretteHero :state="todayStatus==='zero'?'extinguished':todayStatus==='smoked'?'weak':'burning'" :nickname="familyStore.currentMember?.nickname" :streak="smokingStore.statistics?.currentStreak" />
         <button class="checkin-cta" :disabled="smokingStore.statistics?.planDays === 0" @click="router.push('/checkin')">
           <van-icon :name="smokingStore.todayCheckin ? 'edit' : 'passed'" size="23" />
@@ -153,7 +153,7 @@ onBeforeUnmount(() => messageStore.stopRealtime())
       </template>
 
       <template v-else>
-        <header class="brand-row"><div><b>无烟之家</b><span>{{ familyStore.currentFamily?.name }}</span></div><button class="profile-shortcut" aria-label="打开我的页面" @click="router.push('/profile')">{{ profileInitial }}</button></header>
+        <header class="brand-row"><div><b>NO SMOKING</b><span>{{ familyStore.currentFamily?.name }}</span></div><button class="profile-shortcut" aria-label="打开我的页面" @click="router.push('/profile')">{{ profileInitial }}</button></header>
         <section class="supporter-intro"><span>家庭陪伴</span><h1>你的支持，正在让改变发生</h1><p>每一次鼓励，都是戒烟路上的温柔助力。</p></section>
         <SectionHeader title="戒烟进展" caption="今日家庭状态" />
         <div v-if="familyStore.quitterMembers.length > 1" class="supporter-switcher" aria-label="选择戒烟者">

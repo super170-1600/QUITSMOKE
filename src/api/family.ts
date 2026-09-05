@@ -1,6 +1,7 @@
 import { requireSupabaseClient } from '@/services/supabase'
 import type { PostgrestError } from '@supabase/supabase-js'
 import type { Family, FamilyMember, FamilyRole } from '@/types/database'
+import { resolveSingleFamilyMembership } from '@/utils/familyMembership'
 
 interface FamilyMemberWithProfileRow extends FamilyMember {
   profiles: { nickname: string } | { nickname: string }[] | null
@@ -61,9 +62,8 @@ export async function getMyFamilies() {
 
 export async function getCurrentFamily(): Promise<CurrentFamilyResult | null> {
   const memberships = await getMyFamilyMembership()
-  const membership = memberships[0]
+  const membership = resolveSingleFamilyMembership(memberships)
   if (!membership) return null
-  // TODO: Add a family switcher when the MVP supports multiple current families.
   const { data, error } = await requireSupabaseClient()
     .from('families')
     .select('id, name, invite_code, created_by, created_at, updated_at')
@@ -111,4 +111,13 @@ export async function joinFamilyByInviteCode(inviteCode: string, role: FamilyRol
   }
   if (typeof data !== 'string') throw new Error('加入家庭后未返回结果。')
   return data
+}
+
+export async function leaveCurrentFamily() {
+  const { data, error } = await requireSupabaseClient().rpc('leave_current_family')
+  if (error) {
+    logRpcError('leave_current_family', error)
+    throw error
+  }
+  return data === true
 }

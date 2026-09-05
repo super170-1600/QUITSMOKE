@@ -130,5 +130,16 @@ export const useEncouragementStore = defineStore('encouragement', () => {
     await Promise.all([loadEncouragements(familyId), loadMyActivity(familyId)])
   }
 
-  return { items, myItems, myTotal, loading, sending, reactionCooldownUntil, isReactionCoolingDown, loadEncouragements, loadMyActivity, sendReaction, sendMessage, deleteMine }
+  function reset() {
+    cooldownTimers.forEach((timer) => clearTimeout(timer))
+    cooldownTimers.clear()
+    items.value = []
+    myItems.value = []
+    myTotal.value = 0
+    loading.value = false
+    sending.value = false
+    reactionCooldownUntil.value = {}
+  }
+
+  return { items, myItems, myTotal, loading, sending, reactionCooldownUntil, isReactionCoolingDown, loadEncouragements, loadMyActivity, sendReaction, sendMessage, deleteMine, reset }
 })

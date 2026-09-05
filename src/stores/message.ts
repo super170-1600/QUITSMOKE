@@ -121,5 +121,14 @@ export const useMessageStore = defineStore('message', () => {
     realtimeStatus.value = 'idle'
   }
 
-  return { items, myItems, myTotal, loading, sending, realtimeStatus, loadMessages, loadMyActivity, sendText, startRealtime, stopRealtime }
+  function reset() {
+    stopRealtime()
+    items.value = []
+    myItems.value = []
+    myTotal.value = 0
+    loading.value = false
+    sending.value = false
+  }
+
+  return { items, myItems, myTotal, loading, sending, realtimeStatus, loadMessages, loadMyActivity, sendText, startRealtime, stopRealtime, reset }
 })

@@ -1,4 +1,4 @@
-# 无烟之家 / Quit Smoking Family
+# NO SMOKING / Family Quit Companion
 
 家庭戒烟打卡 Web App MVP。
 
@@ -20,7 +20,12 @@ VITE_SUPABASE_ANON_KEY=your-browser-safe-anon-or-publishable-value
 
 首次使用前，在 Supabase SQL Editor 执行 `docs/database.sql`。数据库结构与 RLS 说明见 `docs/DATABASE.md`，真实多账号验证步骤见 `docs/REAL_WORLD_TEST.md`。
 
-如果现有 Supabase 项目已经执行过旧版六表脚本，只需再执行 `docs/messages_patch.sql`，即可增加家庭动态、打卡系统事件与 Realtime；不需要重建原有表。
+如果现有 Supabase 项目已经执行过旧版脚本：
+
+1. 执行 `docs/messages_patch.sql`，增加家庭动态、打卡系统事件与 Realtime。
+2. 执行 `docs/family_membership_patch.sql`，限制一个账号同时只能加入一个家庭，并增加安全退出家庭 RPC。
+
+两份 patch 都不需要重建原有业务表。
 
 ## 构建与部署
 

@@ -6,6 +6,7 @@ import {
   getCurrentFamily,
   getFamilyMembers,
   joinFamilyByInviteCode,
+  leaveCurrentFamily,
 } from '@/api/family'
 import type { Family, FamilyMember, FamilyRole } from '@/types/database'
 import type { Checkin, SmokingProfile } from '@/types/database'
@@ -58,6 +59,14 @@ export const useFamilyStore = defineStore('family', () => {
     return selectedQuitter.value
   }
 
+  function clearFamilyData() {
+    currentFamily.value = null
+    currentMember.value = null
+    members.value = []
+    selectedQuitterId.value = ''
+    quitterSummaries.value = {}
+  }
+
   async function loadMembers() {
     if (!currentFamily.value) {
       members.value = []
@@ -105,7 +114,7 @@ export const useFamilyStore = defineStore('family', () => {
       currentFamily.value = result ? toFamilyModel(result.family) : null
       currentMember.value = result ? toMemberModel(result.membership) : null
       members.value = []
-      if (!result) selectedQuitterId.value = ''
+      if (!result) clearFamilyData()
       if (result) await loadMembers()
       initializedForUser.value = userId
       initialized.value = true
@@ -129,5 +138,12 @@ export const useFamilyStore = defineStore('family', () => {
     await refreshFamily()
   }
 
-  return { currentFamily, currentMember, members, selectedQuitterId, quitterMembers, selectedQuitter, quitterSummaries, loading, summariesLoading, initialized, hasFamily, isQuitter, isSupporter, inviteCode, selectQuitter, initializeFamily, createFamily, joinFamily, loadMembers, loadQuitterSummaries, refreshFamily }
+  async function leaveFamily() {
+    await leaveCurrentFamily()
+    clearFamilyData()
+    initializedForUser.value = authStore.user?.id ?? null
+    initialized.value = true
+  }
+
+  return { currentFamily, currentMember, members, selectedQuitterId, quitterMembers, selectedQuitter, quitterSummaries, loading, summariesLoading, initialized, hasFamily, isQuitter, isSupporter, inviteCode, selectQuitter, initializeFamily, createFamily, joinFamily, leaveFamily, loadMembers, loadQuitterSummaries, refreshFamily }
 })

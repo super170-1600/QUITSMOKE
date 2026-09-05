@@ -1,6 +1,6 @@
 # 真实 Supabase 集成验证
 
-> 当前执行状态：**BLOCKED — real backend not configured**。仓库中没有 `.env`，且尚未在 Supabase 项目中确认执行 `docs/database.sql`。以下“实际结果”在真实验证前必须保持“待验证”，不得以静态构建代替。
+> 当前执行状态：本地 `.env` 已配置且 Supabase Auth settings 接口连接成功；数据库 patch 执行状态与真实 A/B/C 多账号流程仍待人工确认。以下“实际结果”在真实验证前必须保持“待验证”，不得以静态构建代替。
 
 本清单不得记录真实密码、access token、anon/publishable key 或测试邮箱。账号标记统一使用 User A/B/C。
 
@@ -8,9 +8,9 @@
 
 1. 创建 Supabase Project。
 2. Dashboard → SQL Editor，执行 `docs/database.sql` 全文；如有错误，停止后续验证并先修复 SQL。
-3. Table Editor 确认存在：`profiles`、`families`、`family_members`、`smoking_profiles`、`checkins`、`encouragements`。
-4. Database → Functions 确认：`handle_new_user`、`is_family_member`、`shares_family_with`、`create_family`、`join_family_by_invite_code`。
-5. 确认 `auth.users` 上存在 `on_auth_user_created` trigger，并确认六张业务表已开启 RLS、policies 与 `docs/database.sql` 一致。
+3. Table Editor 确认存在：`profiles`、`families`、`family_members`、`smoking_profiles`、`checkins`、`encouragements`、`messages`。
+4. Database → Functions 确认：`handle_new_user`、`is_family_member`、`shares_family_with`、`create_family`、`join_family_by_invite_code`、`leave_current_family`。
+5. 确认 `auth.users` 上存在 `on_auth_user_created` trigger，并确认七张业务表已开启 RLS、policies 与 `docs/database.sql` 一致。
 6. Authentication → Providers 启用 Email。本地双账号验证可暂时关闭 Confirm Email；若保持开启，必须分别完成验证邮件。
 7. Authentication → URL Configuration 设置本地 Site URL `http://localhost:5173`。若 Vite 使用其他端口，以终端实际地址为准。
 8. 从 `.env.example` 创建 `.env`，只填写浏览器安全的 URL 和 anon/publishable value，重启 Vite。
@@ -31,6 +31,9 @@
 | B 家庭读取 | FamilyView 能读取 A 的真实 streak、今日状态、少吸和节省 | 待验证 |
 | B 发鼓励 | 向 A 发送 👏 和“今天也加油”；发送者必须为 B | 待验证 |
 | A 看鼓励 | A 重新进入 FamilyView，看到 B nickname、👏 和文字 | 待验证 |
+| B 重复绑定 | B 已在 A 家庭时尝试加入或创建另一个家庭，应被明确拒绝 | 待验证 |
+| B 退出家庭 | 确认后退出；B 个人数据保留，随后可以加入另一家庭 | 待验证 |
+| 创建者退出 | 有剩余成员时所有权移交；最后一人退出时空家庭删除 | 待验证 |
 | User C 隔离 | C 不加入 A/B 家庭，不能读取或写入其数据 | 待验证 |
 
 ## 3. RPC 与 relation shape

@@ -38,7 +38,7 @@ export async function getFamilyMessages(familyId: string, limit = 80) {
       content: row.content,
       event_key: row.event_key,
       created_at: row.created_at,
-      sender_nickname: profile?.nickname ?? (row.sender_id ? '家庭成员' : '无烟之家'),
+      sender_nickname: profile?.nickname ?? (row.sender_id ? '家庭成员' : 'NO SMOKING'),
     }
   }) satisfies FamilyMessageWithNickname[]
 }

@@ -5,7 +5,7 @@ import { buildFamilyTimeline } from '@/utils/familyTimeline'
 describe('buildFamilyTimeline', () => {
   it('merges system events, text and existing reactions chronologically', () => {
     const messages: FamilyMessageModel[] = [
-      { id: 'm2', familyId: 'f', senderId: null, type: 'system_checkin', content: '🚭 爸爸今天完成无烟打卡', createdAt: '2026-09-05T10:02:00Z', senderNickname: '无烟之家' },
+      { id: 'm2', familyId: 'f', senderId: null, type: 'system_checkin', content: '🚭 爸爸今天完成无烟打卡', createdAt: '2026-09-05T10:02:00Z', senderNickname: 'NO SMOKING' },
       { id: 'm1', familyId: 'f', senderId: 'u1', type: 'text', content: '今天轻松一些', createdAt: '2026-09-05T10:00:00Z', senderNickname: '爸爸' },
     ]
     const encouragements: EncouragementModel[] = [

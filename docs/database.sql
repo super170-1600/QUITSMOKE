@@ -24,7 +24,8 @@ create table if not exists public.family_members (
   role text not null constraint family_members_role_check
     check (role in ('quitter', 'supporter')),
   joined_at timestamptz not null default now(),
-  constraint family_members_family_user_key unique (family_id, user_id)
+  constraint family_members_family_user_key unique (family_id, user_id),
+  constraint family_members_user_key unique (user_id)
 );
 
 create table if not exists public.smoking_profiles (
@@ -87,7 +88,19 @@ create table if not exists public.messages (
   )
 );
 
-create index if not exists family_members_user_id_idx
+do $$
+begin
+  if exists (
+    select 1 from public.family_members fm
+    group by fm.user_id
+    having count(*) > 1
+  ) then
+    raise exception 'Cannot enforce one family per user: duplicate family memberships exist';
+  end if;
+end;
+$$;
+
+create unique index if not exists family_members_user_key
   on public.family_members (user_id);
 create index if not exists checkins_user_date_desc_idx
   on public.checkins (user_id, checkin_date desc);
@@ -325,6 +338,9 @@ begin
   if not exists (select 1 from public.profiles p where p.id = v_user_id) then
     raise exception 'Profile not found' using errcode = '23503';
   end if;
+  if exists (select 1 from public.family_members fm where fm.user_id = v_user_id) then
+    raise exception 'User already belongs to a family' using errcode = '23505';
+  end if;
 
   for v_attempt in 1..10 loop
     v_invite_code := upper(pg_catalog.substr(
@@ -381,11 +397,78 @@ begin
     raise exception 'Invalid invite code' using errcode = '22023';
   end if;
 
+  if exists (
+    select 1 from public.family_members fm
+    where fm.user_id = v_user_id
+      and fm.family_id = v_family_id
+  ) then
+    return v_family_id;
+  end if;
+  if exists (select 1 from public.family_members fm where fm.user_id = v_user_id) then
+    raise exception 'User already belongs to a family' using errcode = '23505';
+  end if;
+
   insert into public.family_members (family_id, user_id, role)
-  values (v_family_id, v_user_id, member_role)
-  on conflict (family_id, user_id) do nothing;
+  values (v_family_id, v_user_id, member_role);
 
   return v_family_id;
+end;
+$$;
+
+-- Leaves the caller's only family. A creator transfers ownership to the
+-- earliest remaining member; an empty family is removed.
+create or replace function public.leave_current_family()
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_membership_id uuid;
+  v_family_id uuid;
+  v_creator_id uuid;
+  v_next_owner_id uuid;
+begin
+  if v_user_id is null then
+    raise exception 'Authentication required' using errcode = '42501';
+  end if;
+
+  select fm.id, fm.family_id
+  into v_membership_id, v_family_id
+  from public.family_members fm
+  where fm.user_id = v_user_id
+  for update;
+
+  if v_membership_id is null then
+    return false;
+  end if;
+
+  select f.created_by into v_creator_id
+  from public.families f
+  where f.id = v_family_id
+  for update;
+
+  if v_creator_id = v_user_id then
+    select fm.user_id into v_next_owner_id
+    from public.family_members fm
+    where fm.family_id = v_family_id
+      and fm.id <> v_membership_id
+    order by fm.joined_at, fm.id
+    limit 1;
+
+    if v_next_owner_id is null then
+      delete from public.families f where f.id = v_family_id;
+      return true;
+    end if;
+
+    update public.families f
+    set created_by = v_next_owner_id
+    where f.id = v_family_id;
+  end if;
+
+  delete from public.family_members fm where fm.id = v_membership_id;
+  return true;
 end;
 $$;
 
@@ -394,10 +477,12 @@ revoke all on function public.is_family_member(uuid) from public;
 revoke all on function public.shares_family_with(uuid) from public;
 revoke all on function public.create_family(text, text) from public;
 revoke all on function public.join_family_by_invite_code(text, text) from public;
+revoke all on function public.leave_current_family() from public;
 grant execute on function public.is_family_member(uuid) to authenticated;
 grant execute on function public.shares_family_with(uuid) to authenticated;
 grant execute on function public.create_family(text, text) to authenticated;
 grant execute on function public.join_family_by_invite_code(text, text) to authenticated;
+grant execute on function public.leave_current_family() to authenticated;
 
 -- Explicit table privileges complement RLS and remove unsupported operations.
 revoke all on table public.profiles from anon, authenticated;
@@ -567,3 +652,5 @@ exception
   when duplicate_object then null;
 end;
 $$;
+
+notify pgrst, 'reload schema';
