@@ -27,14 +27,17 @@ async function logout(){if(loggingOut.value)return;loggingOut.value=true;try{awa
 
 <template>
   <main class="page shell">
-    <header class="profile-heading"><div class="avatar">{{familyStore.currentMember?.nickname?.slice(0,1)??'我'}}</div><div><span>我的</span><h1>{{familyStore.currentMember?.nickname??'家庭成员'}}</h1><p>{{authStore.user?.email??'未提供邮箱'}}</p></div></header>
+    <header class="profile-heading"><div class="avatar">{{familyStore.currentMember?.nickname?.slice(0,1)??'我'}}</div><div><span>我的</span><h1>{{familyStore.currentMember?.nickname??authStore.profile?.nickname??'家庭成员'}}</h1><p>{{authStore.user?.email??authStore.user?.username??'已登录账号'}}</p></div></header>
     <div v-if="loading" class="state"><van-loading size="20"/>正在加载…</div>
     <template v-else>
       <SupporterActivityCard v-if="familyStore.isSupporter" :items="encouragementStore.myItems" :total="encouragementStore.myTotal" :messages="messageStore.myItems" :message-total="messageStore.myTotal" :members="familyStore.members" :warning="supporterActivityWarning" :unavailable="supporterActivityUnavailable" @encourage="router.push('/family')" />
       <section class="card family-info"><h2>家庭信息</h2><van-cell-group inset><van-cell title="家庭" :value="familyStore.currentFamily?.name??'未加入'"/><van-cell title="身份" :value="familyStore.isQuitter?'戒烟者':'支持者'"/></van-cell-group></section>
       <section class="card display-settings"><div><h2>显示模式</h2><span>根据屏幕自动切换</span></div><div class="display-options"><button v-for="mode in (['auto','mobile','desktop'] as DisplayMode[])" :key="mode" :class="{active:displayMode===mode}" @click="changeDisplayMode(mode)">{{mode==='auto'?'自动':mode==='mobile'?'手机':'桌面'}}</button></div></section>
       <section v-if="familyStore.isQuitter" class="card settings"><h2>戒烟设置</h2><van-cell-group v-if="smokingStore.smokingProfile" inset><van-cell title="开始日期" :value="smokingStore.smokingProfile.quitStartDate"/><van-cell title="原每日吸烟量" :value="`${smokingStore.smokingProfile.baselineDailyCigarettes} 支`"/><van-cell title="每包支数" :value="`${smokingStore.smokingProfile.cigarettesPerPack} 支`"/><van-cell title="每包价格" :value="`¥${smokingStore.smokingProfile.pricePerPack.toFixed(2)}`"/></van-cell-group><van-button block plain round type="primary" @click="router.push({path:'/setup',query:{edit:'1'}})">编辑戒烟设置</van-button></section>
-      <section v-if="devToolsEnabled&&familyStore.isQuitter" class="card dev-entry"><van-cell title="测试工具" label="生成历史打卡数据" icon="setting-o" is-link @click="router.push('/dev')"/></section>
+      <section v-if="devToolsEnabled" class="card dev-entry">
+        <van-cell title="账号诊断" label="检查 CloudBase 登录身份链路" icon="warning-o" is-link @click="router.push('/auth-debug')"/>
+        <van-cell v-if="familyStore.isQuitter" title="测试工具" label="生成历史打卡数据" icon="setting-o" is-link @click="router.push('/dev')"/>
+      </section>
     </template>
     <van-button class="logout" plain type="danger" round block :loading="loggingOut" @click="logout">退出登录</van-button><AppTabbar/>
   </main>

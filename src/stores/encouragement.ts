@@ -11,6 +11,7 @@ import {
 } from '@/api/encouragement'
 import type { EncouragementModel } from '@/types/domain'
 import { getReactionCooldownKey, isReactionCooldownActive, normalizeEncouragementMessage } from '@/utils/encouragement'
+import { captureAccountScope, isAccountScopeCurrent } from '@/stores/accountScope'
 
 const REACTION_COOLDOWN_MS = 10_000
 
@@ -25,13 +26,15 @@ export const useEncouragementStore = defineStore('encouragement', () => {
   const cooldownTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   async function loadEncouragements(familyId: string) {
+    const revision = captureAccountScope()
     loading.value = true
     try {
       const rows = await getEncouragements(familyId)
+      if (!isAccountScopeCurrent(revision)) return items.value
       items.value = rows.map((row) => ({ id: row.id, familyId: row.family_id, fromUserId: row.from_user_id, toUserId: row.to_user_id, type: row.type, message: row.message ?? '', createdAt: row.created_at, fromNickname: row.from_nickname }))
       return items.value
     } finally {
-      loading.value = false
+      if (isAccountScopeCurrent(revision)) loading.value = false
     }
   }
 
@@ -40,7 +43,9 @@ export const useEncouragementStore = defineStore('encouragement', () => {
   }
 
   async function loadMyActivity(familyId: string) {
+    const revision = captureAccountScope()
     const result = await getMyEncouragementActivity(familyId)
+    if (!isAccountScopeCurrent(revision)) return myItems.value
     myItems.value = result.items.map(toModel)
     myTotal.value = result.total
     return myItems.value
@@ -96,8 +101,10 @@ export const useEncouragementStore = defineStore('encouragement', () => {
     assertCanSend(toUserId)
     if (isReactionCoolingDown(toUserId, type)) throw new Error('这份鼓励刚刚送达，请稍后再发送。')
     sending.value = true
+    const revision = captureAccountScope()
     try {
       const row = await sendReactionRequest({ familyId, toUserId, type })
+      if (!isAccountScopeCurrent(revision)) throw new Error('登录账号已切换，请重新操作。')
       startReactionCooldown(toUserId, type)
       rememberSentReaction(row, fromNickname)
       const refreshResults = await Promise.allSettled([loadEncouragements(familyId), loadMyActivity(familyId)])
@@ -107,7 +114,7 @@ export const useEncouragementStore = defineStore('encouragement', () => {
         }
       })
     } finally {
-      sending.value = false
+      if (isAccountScopeCurrent(revision)) sending.value = false
     }
   }
 
@@ -116,17 +123,21 @@ export const useEncouragementStore = defineStore('encouragement', () => {
     const normalized = normalizeEncouragementMessage(message)
     if (!normalized) throw new Error('鼓励内容需为 1–200 字。')
     sending.value = true
+    const revision = captureAccountScope()
     try {
       await sendMessageRequest({ familyId, toUserId, message: normalized })
+      if (!isAccountScopeCurrent(revision)) throw new Error('登录账号已切换，请重新操作。')
       await loadEncouragements(familyId)
       await loadMyActivity(familyId)
     } finally {
-      sending.value = false
+      if (isAccountScopeCurrent(revision)) sending.value = false
     }
   }
 
   async function deleteMine(familyId: string, id: string) {
+    const revision = captureAccountScope()
     await deleteMyEncouragement(id)
+    if (!isAccountScopeCurrent(revision)) return
     await Promise.all([loadEncouragements(familyId), loadMyActivity(familyId)])
   }
 

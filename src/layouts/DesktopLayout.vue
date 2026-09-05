@@ -25,7 +25,7 @@ function changeMode(mode: DisplayMode) {
         <div class="mode-switch" role="group" aria-label="显示模式">
           <button v-for="mode in (['auto','mobile','desktop'] as DisplayMode[])" :key="mode" :class="{active:displayMode===mode}" @click="changeMode(mode)">{{ mode==='auto'?'自动':mode==='mobile'?'手机':'桌面' }}</button>
         </div>
-        <div class="account"><span>{{ familyStore.currentMember?.nickname ?? '家庭成员' }}</span><small>{{ authStore.user?.email }}</small></div>
+        <div class="account"><span>{{ familyStore.currentMember?.nickname ?? authStore.profile?.nickname ?? '家庭成员' }}</span><small>{{ authStore.user?.email ?? authStore.user?.username }}</small></div>
       </div>
     </header>
     <main class="desktop-content"><slot /></main>

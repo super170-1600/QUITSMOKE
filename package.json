@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cloudbase/js-sdk": "^3.9.2",
     "@supabase/supabase-js": "^2.57.4",
     "@vant/use": "^1.6.0",
     "echarts": "^6.1.0",

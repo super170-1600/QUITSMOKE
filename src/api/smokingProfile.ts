@@ -1,4 +1,5 @@
-import { requireSupabaseClient } from '@/services/supabase'
+import { getAuthenticatedUserId, getBackendDatabase, runBackendRequest } from '@/services/backend'
+import { normalizeUserIdFields } from '@/services/backend/userId'
 import type { SmokingProfile } from '@/types/database'
 
 export interface CreateSmokingProfileInput {
@@ -10,53 +11,54 @@ export interface CreateSmokingProfileInput {
 
 export type UpdateSmokingProfileInput = CreateSmokingProfileInput
 
-async function getAuthenticatedUserId() {
-  const { data, error } = await requireSupabaseClient().auth.getUser()
-  if (error) throw error
-  if (!data.user) throw new Error('登录状态已失效，请重新登录。')
-  return data.user.id
-}
-
 export async function getMySmokingProfile() {
   const userId = await getAuthenticatedUserId()
-  const { data, error } = await requireSupabaseClient()
-    .from('smoking_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (error) throw error
-  return data as SmokingProfile | null
+  const { data } = await runBackendRequest(
+    getBackendDatabase()
+      .from('smoking_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    '读取戒烟设置',
+  )
+  return data ? normalizeUserIdFields(data as unknown as SmokingProfile, ['user_id']) : null
 }
 
 export async function getSmokingProfileByUserId(userId: string) {
-  const { data, error } = await requireSupabaseClient()
-    .from('smoking_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (error) throw error
-  return data as SmokingProfile | null
+  const { data } = await runBackendRequest(
+    getBackendDatabase()
+      .from('smoking_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    '读取家庭戒烟设置',
+  )
+  return data ? normalizeUserIdFields(data as unknown as SmokingProfile, ['user_id']) : null
 }
 
 export async function createMySmokingProfile(input: CreateSmokingProfileInput) {
   const userId = await getAuthenticatedUserId()
-  const { data, error } = await requireSupabaseClient()
-    .from('smoking_profiles')
-    .insert({ ...input, user_id: userId })
-    .select('*')
-    .single()
-  if (error) throw error
-  return data as SmokingProfile
+  const { data } = await runBackendRequest(
+    getBackendDatabase()
+      .from('smoking_profiles')
+      .insert({ ...input, user_id: userId })
+      .select('*')
+      .single(),
+    '创建戒烟设置',
+  )
+  return normalizeUserIdFields(data as unknown as SmokingProfile, ['user_id'])
 }
 
 export async function updateMySmokingProfile(input: UpdateSmokingProfileInput) {
   const userId = await getAuthenticatedUserId()
-  const { data, error } = await requireSupabaseClient()
-    .from('smoking_profiles')
-    .update(input)
-    .eq('user_id', userId)
-    .select('*')
-    .single()
-  if (error) throw error
-  return data as SmokingProfile
+  const { data } = await runBackendRequest(
+    getBackendDatabase()
+      .from('smoking_profiles')
+      .update(input)
+      .eq('user_id', userId)
+      .select('*')
+      .single(),
+    '更新戒烟设置',
+  )
+  return normalizeUserIdFields(data as unknown as SmokingProfile, ['user_id'])
 }

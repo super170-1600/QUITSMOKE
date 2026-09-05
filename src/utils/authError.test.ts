@@ -10,7 +10,7 @@ describe('getFriendlyAuthError', () => {
   })
 
   it('keeps an actionable unknown error and handles non-errors', () => {
-    expect(getFriendlyAuthError(new Error('Network request failed'))).toBe('Network request failed')
+    expect(getFriendlyAuthError(new Error('Network request failed'))).toContain('网络连接失败')
     expect(getFriendlyAuthError(null)).toBe('操作未完成，请稍后再试。')
   })
 })

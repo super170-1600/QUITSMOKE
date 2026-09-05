@@ -8,6 +8,7 @@ import {
   type FamilyRealtimeStatus,
 } from '@/api/message'
 import type { FamilyMessageModel } from '@/types/domain'
+import { captureAccountScope, isAccountScopeCurrent } from '@/stores/accountScope'
 
 export const useMessageStore = defineStore('message', () => {
   const items = ref<FamilyMessageModel[]>([])
@@ -40,9 +41,11 @@ export const useMessageStore = defineStore('message', () => {
   }
 
   async function loadMessages(familyId: string) {
+    const revision = captureAccountScope()
     loading.value = true
     try {
       const rows = await getFamilyMessages(familyId)
+      if (!isAccountScopeCurrent(revision)) return items.value
       items.value = rows.map((row) => ({
         id: row.id,
         familyId: row.family_id,
@@ -54,14 +57,16 @@ export const useMessageStore = defineStore('message', () => {
       }))
       return items.value
     } finally {
-      loading.value = false
+      if (isAccountScopeCurrent(revision)) loading.value = false
     }
   }
 
   async function sendText(familyId: string, content: string, senderNickname = '我') {
     sending.value = true
+    const revision = captureAccountScope()
     try {
       const row = await sendFamilyTextMessage(familyId, content)
+      if (!isAccountScopeCurrent(revision)) throw new Error('登录账号已切换，请重新操作。')
       rememberSentMessage(toModel(row, senderNickname))
       const refreshResults = await Promise.allSettled([loadMessages(familyId), loadMyActivity(familyId)])
       refreshResults.forEach((result, index) => {
@@ -70,12 +75,14 @@ export const useMessageStore = defineStore('message', () => {
         }
       })
     } finally {
-      sending.value = false
+      if (isAccountScopeCurrent(revision)) sending.value = false
     }
   }
 
   async function loadMyActivity(familyId: string) {
+    const revision = captureAccountScope()
     const result = await getMyFamilyMessageActivity(familyId)
+    if (!isAccountScopeCurrent(revision)) return myItems.value
     myItems.value = result.items.map((row) => ({
       id: row.id,
       familyId: row.family_id,
@@ -95,6 +102,7 @@ export const useMessageStore = defineStore('message', () => {
     onMessageChange: () => unknown = () => undefined,
   ) {
     stopRealtime()
+    const revision = captureAccountScope()
     realtimeStatus.value = 'connecting'
     const safelyRun = (callback: () => unknown, errorLabel: string) => {
       try {
@@ -106,12 +114,17 @@ export const useMessageStore = defineStore('message', () => {
     stopSubscription = subscribeToFamilyActivity(
       familyId,
       () => {
+        if (!isAccountScopeCurrent(revision)) return
         void loadMessages(familyId)
           .catch((error: unknown) => { console.error('刷新家庭消息失败', error) })
           .finally(() => safelyRun(onMessageChange, '消息到达后刷新页面数据失败'))
       },
-      () => safelyRun(onEncouragementChange, '实时刷新快捷鼓励失败'),
-      (status) => { realtimeStatus.value = status },
+      () => {
+        if (isAccountScopeCurrent(revision)) safelyRun(onEncouragementChange, '实时刷新快捷鼓励失败')
+      },
+      (status) => {
+        if (isAccountScopeCurrent(revision)) realtimeStatus.value = status
+      },
     )
   }
 

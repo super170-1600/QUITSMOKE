@@ -9,14 +9,26 @@ cp .env.example .env
 npm run dev
 ```
 
-在 `.env` 中填写 Supabase Project Settings → API 提供的浏览器端配置：
+默认仍使用 Supabase。在 `.env` 中填写 Supabase Project Settings → API 提供的浏览器端配置：
 
 ```env
+VITE_BACKEND_PROVIDER=supabase
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-browser-safe-anon-or-publishable-value
 ```
 
 变量名沿用项目现有的 `VITE_SUPABASE_ANON_KEY`；其值必须是浏览器安全的 anon/publishable key。严禁使用 `service_role` 或 secret key。`.env` 与本地变体已被 `.gitignore` 排除。
+
+切换到 CloudBase PostgreSQL 时保留上面的 Supabase 配置以便回滚，并增加：
+
+```env
+VITE_BACKEND_PROVIDER=cloudbase
+VITE_CLOUDBASE_ENV_ID=quitsmoke-d0gl5n5ge1297c2b5
+VITE_CLOUDBASE_PUBLISHABLE_KEY=your-browser-safe-publishable-key
+VITE_CLOUDBASE_REGION=ap-shanghai
+```
+
+CloudBase 只能使用浏览器安全的 Publishable Key，禁止把 API Key 或 service-role 凭据写入任何 `VITE_` 变量。修改 `.env` 后必须重启 Vite。CloudBase 数据库部署和前端迁移差异见 `docs/CLOUDBASE_MIGRATION.md`。
 
 首次使用前，在 Supabase SQL Editor 执行 `docs/database.sql`。数据库结构与 RLS 说明见 `docs/DATABASE.md`，真实多账号验证步骤见 `docs/REAL_WORLD_TEST.md`。
 

@@ -1,4 +1,5 @@
-import { requireSupabaseClient } from '@/services/supabase'
+import { getAuthenticatedUserId, getBackendDatabase, runBackendRequest } from '@/services/backend'
+import { normalizeUserIdFields } from '@/services/backend/userId'
 import type { Checkin } from '@/types/database'
 
 export interface DevCheckinInput {
@@ -14,12 +15,8 @@ function assertDevToolsEnabled() {
   }
 }
 
-async function getAuthenticatedUserId() {
-  assertDevToolsEnabled()
-  const { data, error } = await requireSupabaseClient().auth.getUser()
-  if (error) throw error
-  if (!data.user) throw new Error('登录状态已失效，请重新登录。')
-  return data.user.id
+function normalizeCheckin(row: Checkin) {
+  return normalizeUserIdFields(row, ['user_id'])
 }
 
 function validateInput(input: DevCheckinInput) {
@@ -31,64 +28,81 @@ function validateInput(input: DevCheckinInput) {
 
 export async function upsertMyDevCheckin(input: DevCheckinInput) {
   validateInput(input)
+  assertDevToolsEnabled()
   const userId = await getAuthenticatedUserId()
-  const { data, error } = await requireSupabaseClient()
-    .from('checkins')
-    .upsert({ ...input, user_id: userId }, { onConflict: 'user_id,checkin_date' })
-    .select('*')
-    .single()
-  if (error) throw error
-  return data as Checkin
+  const { data } = await runBackendRequest(
+    getBackendDatabase()
+      .from('checkins')
+      .upsert({ ...input, user_id: userId }, { onConflict: 'user_id,checkin_date' })
+      .select('*')
+      .single(),
+    '保存测试打卡',
+  )
+  return normalizeCheckin(data as unknown as Checkin)
 }
 
 export async function ensureMyDevProfileCovers(startDate: string) {
   assertDevToolsEnabled()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new Error('日期格式无效。')
   const userId = await getAuthenticatedUserId()
-  const client = requireSupabaseClient()
-  const { data: profile, error: readError } = await client
-    .from('smoking_profiles')
-    .select('quit_start_date')
-    .eq('user_id', userId)
-    .maybeSingle()
-  if (readError) throw readError
+  const client = getBackendDatabase()
+  const { data: profile } = await runBackendRequest(
+    client
+      .from('smoking_profiles')
+      .select('quit_start_date')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    '读取测试戒烟设置',
+  )
   if (!profile) throw new Error('请先完成戒烟设置。')
   if (profile.quit_start_date <= startDate) return false
-  const { error: updateError } = await client
-    .from('smoking_profiles')
-    .update({ quit_start_date: startDate })
-    .eq('user_id', userId)
-  if (updateError) throw updateError
+  await runBackendRequest(
+    client
+      .from('smoking_profiles')
+      .update({ quit_start_date: startDate })
+      .eq('user_id', userId),
+    '更新测试戒烟设置',
+  )
   return true
 }
 
 export async function replaceMyDevCheckins(startDate: string, endDate: string, inputs: DevCheckinInput[]) {
   inputs.forEach(validateInput)
+  assertDevToolsEnabled()
   const userId = await getAuthenticatedUserId()
-  const client = requireSupabaseClient()
-  const { data, error } = await client
-    .from('checkins')
-    .upsert(inputs.map((input) => ({ ...input, user_id: userId })), { onConflict: 'user_id,checkin_date' })
-    .select('*')
-  if (error) throw error
+  const client = getBackendDatabase()
+  const { data } = await runBackendRequest(
+    client
+      .from('checkins')
+      .upsert(inputs.map((input) => ({ ...input, user_id: userId })), { onConflict: 'user_id,checkin_date' })
+      .select('*'),
+    '批量保存测试打卡',
+  )
   const includedDates = new Set(inputs.map((input) => input.checkin_date))
-  const { data: existing, error: readError } = await client
-    .from('checkins')
-    .select('id,checkin_date')
-    .eq('user_id', userId)
-    .gte('checkin_date', startDate)
-    .lte('checkin_date', endDate)
-  if (readError) throw readError
-  const staleIds = existing.filter((row) => !includedDates.has(row.checkin_date)).map((row) => row.id)
+  const { data: existing } = await runBackendRequest(
+    client
+      .from('checkins')
+      .select('id,checkin_date')
+      .eq('user_id', userId)
+      .gte('checkin_date', startDate)
+      .lte('checkin_date', endDate),
+    '读取测试打卡区间',
+  )
+  const staleIds = (existing ?? []).filter((row) => !includedDates.has(row.checkin_date)).map((row) => row.id)
   if (staleIds.length > 0) {
-    const { error: deleteError } = await client.from('checkins').delete().eq('user_id', userId).in('id', staleIds)
-    if (deleteError) throw deleteError
+    await runBackendRequest(
+      client.from('checkins').delete().eq('user_id', userId).in('id', staleIds),
+      '清理测试打卡',
+    )
   }
-  return data as Checkin[]
+  return (data as unknown as Checkin[]).map(normalizeCheckin)
 }
 
 export async function clearMyDevCheckins() {
+  assertDevToolsEnabled()
   const userId = await getAuthenticatedUserId()
-  const { error } = await requireSupabaseClient().from('checkins').delete().eq('user_id', userId)
-  if (error) throw error
+  await runBackendRequest(
+    getBackendDatabase().from('checkins').delete().eq('user_id', userId),
+    '清空测试打卡',
+  )
 }

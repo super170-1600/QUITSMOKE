@@ -16,6 +16,7 @@ import { getCheckinsForUserBetween } from '@/api/checkin'
 import { buildFamilyQuitterSummary } from '@/utils/familySummary'
 import { getLocalDateString } from '@/utils/date'
 import { resolveSelectedQuitter } from '@/utils/familySelection'
+import { captureAccountScope, isAccountScopeCurrent } from '@/stores/accountScope'
 
 function toFamilyModel(family: Family): FamilyModel {
   return { id: family.id, name: family.name, inviteCode: family.invite_code, createdBy: family.created_by, createdAt: family.created_at }
@@ -67,12 +68,23 @@ export const useFamilyStore = defineStore('family', () => {
     quitterSummaries.value = {}
   }
 
+  function reset() {
+    clearFamilyData()
+    loading.value = false
+    summariesLoading.value = false
+    initialized.value = false
+    initializedForUser.value = null
+  }
+
   async function loadMembers() {
     if (!currentFamily.value) {
       members.value = []
       return []
     }
-    const rows = await getFamilyMembers(currentFamily.value.id)
+    const revision = captureAccountScope()
+    const familyId = currentFamily.value.id
+    const rows = await getFamilyMembers(familyId)
+    if (!isAccountScopeCurrent(revision) || currentFamily.value?.id !== familyId) return members.value
     members.value = rows.map(toMemberModel)
     selectQuitter(selectedQuitterId.value)
     const ownId = authStore.user?.id
@@ -81,6 +93,7 @@ export const useFamilyStore = defineStore('family', () => {
   }
 
   async function loadQuitterSummaries() {
+    const revision = captureAccountScope()
     const quitters = members.value.filter((member) => member.role === 'quitter')
     const today = getLocalDateString()
     summariesLoading.value = true
@@ -97,10 +110,11 @@ export const useFamilyStore = defineStore('family', () => {
           return [member.userId, { member, smokingProfile: null, todayCheckin: null, statistics: null, trendData: [], checkins: [], loadFailed: true } satisfies FamilyQuitterSummary] as const
         }
       }))
+      if (!isAccountScopeCurrent(revision)) return quitterSummaries.value
       quitterSummaries.value = Object.fromEntries(entries)
       return quitterSummaries.value
     } finally {
-      summariesLoading.value = false
+      if (isAccountScopeCurrent(revision)) summariesLoading.value = false
     }
   }
 
@@ -109,8 +123,10 @@ export const useFamilyStore = defineStore('family', () => {
     if (!userId) throw new Error('登录状态已失效，请重新登录。')
     if (!force && initialized.value && initializedForUser.value === userId) return currentFamily.value
     loading.value = true
+    const revision = captureAccountScope()
     try {
       const result = await getCurrentFamily()
+      if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) return currentFamily.value
       currentFamily.value = result ? toFamilyModel(result.family) : null
       currentMember.value = result ? toMemberModel(result.membership) : null
       members.value = []
@@ -120,7 +136,7 @@ export const useFamilyStore = defineStore('family', () => {
       initialized.value = true
       return currentFamily.value
     } finally {
-      loading.value = false
+      if (isAccountScopeCurrent(revision)) loading.value = false
     }
   }
 
@@ -129,21 +145,30 @@ export const useFamilyStore = defineStore('family', () => {
   }
 
   async function createFamily(name: string, role: FamilyRole) {
+    const revision = captureAccountScope()
+    const userId = authStore.user?.id
     await createFamilyRequest(name, role)
+    if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) throw new Error('登录账号已切换，请重新操作。')
     await refreshFamily()
   }
 
   async function joinFamily(inviteCodeValue: string, role: FamilyRole) {
+    const revision = captureAccountScope()
+    const userId = authStore.user?.id
     await joinFamilyByInviteCode(inviteCodeValue, role)
+    if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) throw new Error('登录账号已切换，请重新操作。')
     await refreshFamily()
   }
 
   async function leaveFamily() {
+    const revision = captureAccountScope()
+    const userId = authStore.user?.id
     await leaveCurrentFamily()
+    if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) return
     clearFamilyData()
     initializedForUser.value = authStore.user?.id ?? null
     initialized.value = true
   }
 
-  return { currentFamily, currentMember, members, selectedQuitterId, quitterMembers, selectedQuitter, quitterSummaries, loading, summariesLoading, initialized, hasFamily, isQuitter, isSupporter, inviteCode, selectQuitter, initializeFamily, createFamily, joinFamily, leaveFamily, loadMembers, loadQuitterSummaries, refreshFamily }
+  return { currentFamily, currentMember, members, selectedQuitterId, quitterMembers, selectedQuitter, quitterSummaries, loading, summariesLoading, initialized, hasFamily, isQuitter, isSupporter, inviteCode, selectQuitter, initializeFamily, createFamily, joinFamily, leaveFamily, loadMembers, loadQuitterSummaries, refreshFamily, reset }
 })

@@ -23,6 +23,7 @@ import type {
 } from '@/types/domain'
 import { buildDailyTrend, calculateSmokingStatistics } from '@/utils/statistics'
 import { getLocalDateString } from '@/utils/date'
+import { captureAccountScope, isAccountScopeCurrent } from '@/stores/accountScope'
 
 function toSmokingProfileModel(profile: SmokingProfile): SmokingProfileModel {
   return {
@@ -66,13 +67,15 @@ export const useSmokingStore = defineStore('smoking', () => {
     const userId = authStore.user?.id
     if (!userId) throw new Error('登录状态已失效，请重新登录。')
     loading.value = true
+    const revision = captureAccountScope()
     try {
       const profile = await getMySmokingProfile()
+      if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) return smokingProfile.value
       smokingProfile.value = profile ? toSmokingProfileModel(profile) : null
       profileLoadedForUser.value = userId
       return smokingProfile.value
     } finally {
-      loading.value = false
+      if (isAccountScopeCurrent(revision)) loading.value = false
     }
   }
 
@@ -84,13 +87,17 @@ export const useSmokingStore = defineStore('smoking', () => {
   }
 
   async function loadTodayCheckin() {
+    const userId = authStore.user?.id
+    if (!userId) throw new Error('登录状态已失效，请重新登录。')
+    const revision = captureAccountScope()
     loading.value = true
     try {
       const checkin = await getTodayCheckin()
+      if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) return todayCheckin.value
       todayCheckin.value = checkin ? toCheckinModel(checkin) : null
       return todayCheckin.value
     } finally {
-      loading.value = false
+      if (isAccountScopeCurrent(revision)) loading.value = false
     }
   }
 
@@ -110,20 +117,23 @@ export const useSmokingStore = defineStore('smoking', () => {
     const userId = authStore.user?.id
     if (!userId) throw new Error('登录状态已失效，请重新登录。')
     loading.value = true
+    const revision = captureAccountScope()
     try {
       const profile = await ensureSmokingProfileLoaded()
+      if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) return statistics.value
       const today = getLocalDateString()
       if (!profile || profile.quitStartDate > today) {
         checkins.value = []
       } else {
         const rows = await getCheckinsBetween(profile.quitStartDate, today)
+        if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) return statistics.value
         checkins.value = rows.map(toCheckinModel)
       }
       statisticsLoadedForUser.value = userId
       statisticsDate.value = today
       return recalculateStatistics(today)
     } finally {
-      loading.value = false
+      if (isAccountScopeCurrent(revision)) loading.value = false
     }
   }
 
@@ -138,6 +148,9 @@ export const useSmokingStore = defineStore('smoking', () => {
   }
 
   async function saveSmokingProfile(values: SmokingProfileFormValues) {
+    const userId = authStore.user?.id
+    if (!userId) throw new Error('登录状态已失效，请重新登录。')
+    const revision = captureAccountScope()
     const input = {
       quit_start_date: values.quitStartDate,
       baseline_daily_cigarettes: values.baselineDailyCigarettes,
@@ -147,6 +160,9 @@ export const useSmokingStore = defineStore('smoking', () => {
     const saved = smokingProfile.value
       ? await updateMySmokingProfile(input)
       : await createMySmokingProfile(input)
+    if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) {
+      throw new Error('登录账号已切换，请重新操作。')
+    }
     smokingProfile.value = toSmokingProfileModel(saved)
     profileLoadedForUser.value = authStore.user?.id ?? null
     statisticsLoadedForUser.value = null
@@ -154,6 +170,9 @@ export const useSmokingStore = defineStore('smoking', () => {
   }
 
   async function saveTodayCheckin(values: CheckinFormValues) {
+    const userId = authStore.user?.id
+    if (!userId) throw new Error('登录状态已失效，请重新登录。')
+    const revision = captureAccountScope()
     const note = values.note.trim() || null
     if (todayCheckin.value) {
       const saved = await updateCheckin(todayCheckin.value.id, {
@@ -161,6 +180,7 @@ export const useSmokingStore = defineStore('smoking', () => {
         craving_level: values.cravingLevel,
         note,
       })
+      if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) throw new Error('登录账号已切换，请重新操作。')
       todayCheckin.value = toCheckinModel(saved)
       updateCachedCheckin(todayCheckin.value)
       return todayCheckin.value
@@ -173,10 +193,12 @@ export const useSmokingStore = defineStore('smoking', () => {
         craving_level: values.cravingLevel,
         note,
       })
+      if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) throw new Error('登录账号已切换，请重新操作。')
       todayCheckin.value = toCheckinModel(saved)
       updateCachedCheckin(todayCheckin.value)
       return todayCheckin.value
     } catch (error: unknown) {
+      if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) throw new Error('登录账号已切换，请重新操作。')
       if (!isUniqueViolation(error)) throw error
       const existing = await loadTodayCheckin()
       if (!existing) throw error
@@ -185,6 +207,7 @@ export const useSmokingStore = defineStore('smoking', () => {
         craving_level: values.cravingLevel,
         note,
       })
+      if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) throw new Error('登录账号已切换，请重新操作。')
       todayCheckin.value = toCheckinModel(saved)
       updateCachedCheckin(todayCheckin.value)
       return todayCheckin.value
@@ -196,6 +219,18 @@ export const useSmokingStore = defineStore('smoking', () => {
     if (index === -1) checkins.value.push(checkin)
     else checkins.value[index] = checkin
     if (statistics.value) recalculateStatistics()
+  }
+
+  function reset() {
+    smokingProfile.value = null
+    todayCheckin.value = null
+    checkins.value = []
+    statistics.value = null
+    trendData.value = []
+    loading.value = false
+    profileLoadedForUser.value = null
+    statisticsLoadedForUser.value = null
+    statisticsDate.value = null
   }
 
   return {
@@ -213,5 +248,6 @@ export const useSmokingStore = defineStore('smoking', () => {
     ensureStatisticsLoaded,
     saveSmokingProfile,
     saveTodayCheckin,
+    reset,
   }
 })

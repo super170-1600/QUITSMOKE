@@ -1,31 +1,45 @@
-import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
-import { requireSupabaseClient } from '@/services/supabase'
+import {
+  authIdentifierKind,
+  getCurrentSession,
+  signIn,
+  signOut as backendSignOut,
+  signUp,
+  subscribeToAuthState as subscribeToBackendAuthState,
+} from '@/services/backend/auth'
+import type { BackendAuthEvent, BackendSession } from '@/services/backend/types'
 
-export async function signUpWithEmail(email: string, password: string) {
-  const { data, error } = await requireSupabaseClient().auth.signUp({ email, password })
-  if (error) throw error
-  return data
+export const authPresentation = authIdentifierKind === 'username'
+  ? {
+      identifierKind: 'username' as const,
+      label: '用户名',
+      placeholder: '请输入用户名',
+      autocomplete: 'username',
+      inputType: 'text' as const,
+    }
+  : {
+      identifierKind: 'email' as const,
+      label: '邮箱',
+      placeholder: 'name@example.com',
+      autocomplete: 'email',
+      inputType: 'email' as const,
+    }
+
+export async function signUpWithIdentifier(identifier: string, password: string) {
+  return signUp(identifier, password)
 }
 
-export async function signInWithPassword(email: string, password: string) {
-  const { data, error } = await requireSupabaseClient().auth.signInWithPassword({ email, password })
-  if (error) throw error
-  return data
+export async function signInWithPassword(identifier: string, password: string) {
+  return signIn(identifier, password)
 }
 
 export async function signOut() {
-  const { error } = await requireSupabaseClient().auth.signOut()
-  if (error) throw error
-}
-
-export async function getCurrentSession() {
-  const { data, error } = await requireSupabaseClient().auth.getSession()
-  if (error) throw error
-  return data.session
+  await backendSignOut()
 }
 
 export function subscribeToAuthState(
-  listener: (event: AuthChangeEvent, session: Session | null) => void,
+  listener: (event: BackendAuthEvent, session: BackendSession | null) => void,
 ) {
-  return requireSupabaseClient().auth.onAuthStateChange(listener).data.subscription
+  return subscribeToBackendAuthState(listener)
 }
+
+export { getCurrentSession }

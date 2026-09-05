@@ -1,6 +1,9 @@
 /** Database-facing types mirror PostgreSQL column names with snake_case keys. */
 export type FamilyRole = 'quitter' | 'supporter'
 
+/** UUID on Supabase and decimal bigint serialization on CloudBase. */
+export type UserId = string
+
 export type EncouragementType =
   | 'heart'
   | 'like'
@@ -12,7 +15,7 @@ export type EncouragementType =
 export type FamilyMessageType = 'text' | 'system_checkin' | 'system_milestone'
 
 export interface Profile {
-  id: string
+  id: UserId
   nickname: string
   created_at: string
   updated_at: string
@@ -22,7 +25,7 @@ export interface Family {
   id: string
   name: string
   invite_code: string
-  created_by: string
+  created_by: UserId
   created_at: string
   updated_at: string
 }
@@ -30,14 +33,14 @@ export interface Family {
 export interface FamilyMember {
   id: string
   family_id: string
-  user_id: string
+  user_id: UserId
   role: FamilyRole
   joined_at: string
 }
 
 export interface SmokingProfile {
   id: string
-  user_id: string
+  user_id: UserId
   quit_start_date: string
   baseline_daily_cigarettes: number
   cigarettes_per_pack: number
@@ -48,7 +51,7 @@ export interface SmokingProfile {
 
 export interface Checkin {
   id: string
-  user_id: string
+  user_id: UserId
   checkin_date: string
   cigarettes: number
   craving_level: number
@@ -60,8 +63,8 @@ export interface Checkin {
 export interface Encouragement {
   id: string
   family_id: string
-  from_user_id: string
-  to_user_id: string
+  from_user_id: UserId
+  to_user_id: UserId
   type: EncouragementType
   message: string | null
   created_at: string
@@ -70,7 +73,7 @@ export interface Encouragement {
 export interface FamilyMessage {
   id: string
   family_id: string
-  sender_id: string | null
+  sender_id: UserId | null
   type: FamilyMessageType
   content: string
   event_key: string | null

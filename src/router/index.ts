@@ -22,7 +22,10 @@ const router = createRouter({
     { path: '/profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
     { path: '/dashboard', component: () => import('@/views/DesktopDashboardView.vue'), meta: { requiresAuth: true } },
     ...(devToolsEnabled
-      ? [{ path: '/dev', component: () => import('@/views/DevToolsView.vue'), meta: { requiresAuth: true } }]
+      ? [
+          { path: '/dev', component: () => import('@/views/DevToolsView.vue'), meta: { requiresAuth: true } },
+          { path: '/auth-debug', component: () => import('@/views/AuthDebugView.vue') },
+        ]
       : []),
   ],
 })
@@ -64,7 +67,7 @@ async function resolveAuthenticatedRoute(to: RouteLocationNormalized) {
 }
 
 router.beforeEach(async (to) => {
-  if (to.path === '/dev' && !devToolsEnabled) return '/home'
+  if ((to.path === '/dev' || to.path === '/auth-debug') && !devToolsEnabled) return '/home'
   const authStore = useAuthStore()
   if (!authStore.initialized) {
     try {
@@ -73,6 +76,8 @@ router.beforeEach(async (to) => {
       // The login form reports configuration or network errors.
     }
   }
+
+  if (to.path === '/auth-debug') return undefined
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { path: '/login', query: { redirect: to.fullPath } }
