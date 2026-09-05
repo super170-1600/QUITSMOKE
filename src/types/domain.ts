@@ -107,3 +107,30 @@ export interface EncouragementModel {
   createdAt: string
   fromNickname: string
 }
+
+export interface FamilyMessageModel {
+  id: string
+  familyId: string
+  senderId: string | null
+  type: import('@/types/database').FamilyMessageType
+  content: string
+  createdAt: string
+  senderNickname: string
+}
+
+export type FamilyTimelineItem =
+  | {
+      id: string
+      kind: 'text' | 'reaction'
+      senderId: string
+      senderNickname: string
+      content: string
+      createdAt: string
+      toUserId: string | null
+    }
+  | {
+      id: string
+      kind: 'system'
+      content: string
+      createdAt: string
+    }

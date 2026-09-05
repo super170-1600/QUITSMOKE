@@ -1,76 +1,231 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
 import AppTabbar from '@/components/AppTabbar.vue'
+import FamilyChat from '@/components/FamilyChat.vue'
 import FamilyMemberCard from '@/components/FamilyMemberCard.vue'
 import QuitterProgressCard from '@/components/QuitterProgressCard.vue'
-import { useAuthStore } from '@/stores/auth'
-import { useFamilyStore } from '@/stores/family'
-import { useEncouragementStore } from '@/stores/encouragement'
 import type { ReactionType } from '@/api/encouragement'
-import type { FamilyMemberModel } from '@/types/domain'
-import { formatEncouragementTime } from '@/utils/date'
-import { getReactionEmoji, normalizeEncouragementMessage } from '@/utils/encouragement'
+import { useAuthStore } from '@/stores/auth'
+import { useEncouragementStore } from '@/stores/encouragement'
+import { useFamilyStore } from '@/stores/family'
+import { useMessageStore } from '@/stores/message'
 
-const router=useRouter();const authStore=useAuthStore();const familyStore=useFamilyStore();const encouragementStore=useEncouragementStore()
-const loading=ref(true);const loadFailed=ref(false);const encouragementsLoadFailed=ref(false)
-const messagePopupOpen=ref(false);const messageTarget=ref<FamilyMemberModel|null>(null);const message=ref('')
-const sendDisabled=computed(()=>encouragementStore.sending||encouragementStore.coolingDown)
-const quitters=computed(()=>familyStore.members.filter(member=>member.role==='quitter'))
-const reactions:ReactionType[]=['heart','like','clap','fire','celebrate']
+const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
+const familyStore = useFamilyStore()
+const encouragementStore = useEncouragementStore()
+const messageStore = useMessageStore()
+const loading = ref(true)
+const loadFailed = ref(false)
+const activityLoadFailed = ref(false)
+const activityWarning = ref('')
+const messageUnavailable = ref(false)
+const activeTab = ref<'activity' | 'members'>('activity')
 
-async function loadFamilyPage(){loading.value=true;loadFailed.value=false;encouragementsLoadFailed.value=false;try{await familyStore.refreshFamily();const familyId=familyStore.currentFamily?.id;if(!familyId)return;await Promise.all([familyStore.loadQuitterSummaries(),encouragementStore.loadEncouragements(familyId).catch((error:unknown)=>{console.error('加载鼓励失败',error);encouragementsLoadFailed.value=true})])}catch(error:unknown){console.error('加载家庭页失败',error);loadFailed.value=true;showFailToast('加载家庭信息失败，请稍后重试')}finally{loading.value=false}}
-async function copyInviteCode(){try{if(!familyStore.inviteCode||!navigator.clipboard)throw new Error('Clipboard unavailable');await navigator.clipboard.writeText(familyStore.inviteCode);showSuccessToast('邀请码已复制')}catch(error:unknown){console.error('复制邀请码失败',error);showFailToast('复制失败，请手动记录邀请码')}}
-async function sendReaction(member:FamilyMemberModel,type:ReactionType){const familyId=familyStore.currentFamily?.id;if(!familyId||sendDisabled.value)return;try{await encouragementStore.sendReaction(familyId,member.userId,type);showSuccessToast('鼓励已送达')}catch(error:unknown){console.error('发送表情鼓励失败',error);showFailToast('发送失败，请稍后重试')}}
-function openMessage(member:FamilyMemberModel){messageTarget.value=member;message.value='';messagePopupOpen.value=true}
-async function submitMessage(){const familyId=familyStore.currentFamily?.id;const target=messageTarget.value;const normalized=normalizeEncouragementMessage(message.value);if(!normalized){showFailToast('请输入 1–200 字的鼓励');return}if(!familyId||!target||sendDisabled.value)return;try{await encouragementStore.sendMessage(familyId,target.userId,normalized);messagePopupOpen.value=false;showSuccessToast('鼓励已送达')}catch(error:unknown){console.error('发送文字鼓励失败',error);showFailToast('发送失败，请稍后重试')}}
-async function deleteEncouragement(id:string){const familyId=familyStore.currentFamily?.id;if(!familyId)return;try{await encouragementStore.deleteMine(familyId,id);showSuccessToast('已删除')}catch(error:unknown){console.error('删除鼓励失败',error);showFailToast('删除失败，请稍后重试')}}
-function viewTrend(member:FamilyMemberModel){router.push({path:'/trend',query:{member:member.userId}})}
+const quitters = computed(() => familyStore.quitterMembers)
+const activeQuitter = computed(() => familyStore.selectedQuitter)
+const reactionTarget = computed(() => activeQuitter.value?.userId === authStore.user?.id
+  ? undefined
+  : activeQuitter.value)
+const sendDisabled = computed(() => encouragementStore.sending)
+function isReactionDisabled(type: ReactionType) {
+  const target = reactionTarget.value
+  return !target || encouragementStore.isReactionCoolingDown(target.userId, type)
+}
+
+async function loadActivity(familyId: string) {
+  activityLoadFailed.value = false
+  activityWarning.value = ''
+  messageUnavailable.value = false
+  const [encouragementResult, messageResult] = await Promise.allSettled([
+    encouragementStore.loadEncouragements(familyId),
+    messageStore.loadMessages(familyId),
+  ])
+  const encouragementFailed = encouragementResult.status === 'rejected'
+  const messageFailed = messageResult.status === 'rejected'
+  messageUnavailable.value = messageFailed
+  if (encouragementFailed) console.error('加载快捷鼓励失败', encouragementResult.reason)
+  if (messageFailed) console.error('加载家庭消息失败', messageResult.reason)
+  activityLoadFailed.value = encouragementFailed && messageFailed
+  if (!activityLoadFailed.value && (encouragementFailed || messageFailed)) {
+    activityWarning.value = messageFailed
+      ? '聊天暂时不可用，快捷鼓励仍可查看'
+      : '快捷鼓励暂时不可用，文字消息仍可使用'
+  }
+  if (!messageFailed) {
+    messageStore.startRealtime(
+      familyId,
+      () => encouragementStore.loadEncouragements(familyId),
+      () => familyStore.loadQuitterSummaries(),
+    )
+  }
+}
+
+async function loadFamilyPage() {
+  loading.value = true
+  loadFailed.value = false
+  try {
+    await familyStore.refreshFamily()
+    const familyId = familyStore.currentFamily?.id
+    if (!familyId) return
+    await familyStore.loadQuitterSummaries()
+    const requestedMemberId = typeof route.query.member === 'string' ? route.query.member : ''
+    familyStore.selectQuitter(requestedMemberId || familyStore.selectedQuitterId)
+    await loadActivity(familyId)
+  } catch (error: unknown) {
+    console.error('加载家庭页失败', error)
+    loadFailed.value = true
+    showFailToast('加载家庭信息失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function sendText(content: string) {
+  const familyId = familyStore.currentFamily?.id
+  if (!familyId) return
+  try {
+    await messageStore.sendText(familyId, content, familyStore.currentMember?.nickname ?? '我')
+  } catch (error: unknown) {
+    console.error('发送家庭消息失败', error)
+    showFailToast('消息发送失败，请稍后重试')
+  }
+}
+
+async function sendReaction(type: ReactionType) {
+  const familyId = familyStore.currentFamily?.id
+  const target = reactionTarget.value
+  if (!familyId || !target || sendDisabled.value) return
+  try {
+    await encouragementStore.sendReaction(familyId, target.userId, type, familyStore.currentMember?.nickname ?? '我')
+    showSuccessToast('鼓励已送达')
+  } catch (error: unknown) {
+    console.error('发送表情鼓励失败', error)
+    showFailToast('发送失败，请稍后重试')
+  }
+}
+
+async function copyInviteCode() {
+  try {
+    if (!familyStore.inviteCode || !navigator.clipboard) throw new Error('Clipboard unavailable')
+    await navigator.clipboard.writeText(familyStore.inviteCode)
+    showSuccessToast('邀请码已复制')
+  } catch (error: unknown) {
+    console.error('复制邀请码失败', error)
+    showFailToast('复制失败，请手动记录邀请码')
+  }
+}
+
+function viewTrend() {
+  if (!activeQuitter.value) return
+  router.push({ path: '/trend', query: { member: activeQuitter.value.userId } })
+}
+
+function selectQuitter(userId: string) {
+  familyStore.selectQuitter(userId)
+  void router.replace({ query: { ...route.query, member: userId } })
+}
+
 onMounted(loadFamilyPage)
+onBeforeUnmount(() => messageStore.stopRealtime())
 </script>
 
 <template>
   <main class="page family-page">
-    <div v-if="loading" class="state"><van-loading/> 正在加载家庭…</div>
-    <section v-else-if="loadFailed" class="card state"><span>暂时无法读取家庭信息。</span><van-button plain round type="primary" @click="loadFamilyPage">重新加载</van-button></section>
+    <div v-if="loading" class="state"><van-loading /> 正在进入家庭空间…</div>
+    <section v-else-if="loadFailed" class="card state">
+      <span>暂时无法读取家庭信息。</span>
+      <van-button plain round type="primary" @click="loadFamilyPage">重新加载</van-button>
+    </section>
+
     <template v-else-if="familyStore.currentFamily">
-      <header class="page-heading"><div><span>家人</span><h1>{{familyStore.currentFamily.name}}</h1><p>一起守护，每一步都有人同行。</p></div><div class="family-badge"><van-icon name="like-o" size="23" /></div></header>
+      <header class="page-heading">
+        <div><span>家庭空间</span><h1>{{ familyStore.currentFamily.name }}</h1><p>一起记录，也一起回应。</p></div>
+        <div class="family-mark"><span>♥</span><i>{{ familyStore.members.length }}</i></div>
+      </header>
 
-      <section class="section-block">
-        <div class="section-heading"><h2>戒烟进展</h2><span>{{quitters.length}} 位戒烟者</span></div>
-        <template v-if="quitters.length">
-          <div v-for="member in quitters" :key="member.id" class="quitter-block">
-            <QuitterProgressCard :summary="familyStore.quitterSummaries[member.userId]" :loading="familyStore.summariesLoading" :is-current-user="member.userId===authStore.user?.id" @trend="viewTrend(member)"/>
-            <div v-if="member.userId!==authStore.user?.id" class="encourage-panel">
-              <div><b>送个鼓励</b><span>一句话，也很有力量</span></div>
-              <div class="reaction-row"><button v-for="type in reactions" :key="type" :aria-label="`发送${getReactionEmoji(type)}鼓励`" :disabled="sendDisabled" @click="sendReaction(member,type)">{{getReactionEmoji(type)}}</button><button class="message-action" :disabled="sendDisabled" @click="openMessage(member)"><van-icon name="edit" /> 写句话</button></div>
-            </div>
+      <nav class="space-tabs" aria-label="家庭空间内容">
+        <button :class="{ active: activeTab === 'activity' }" @click="activeTab = 'activity'">
+          <van-icon name="chat-o" />家庭动态
+        </button>
+        <button :class="{ active: activeTab === 'members' }" @click="activeTab = 'members'">
+          <van-icon name="friends-o" />成员
+        </button>
+      </nav>
+
+      <template v-if="activeTab === 'activity'">
+        <section class="progress-section">
+          <div class="section-heading">
+            <div><span>戒烟进度</span><h2>{{ activeQuitter?.nickname ?? '家庭戒烟者' }}</h2></div>
+            <button v-if="activeQuitter" @click="viewTrend">查看趋势 <van-icon name="arrow" /></button>
           </div>
-        </template>
-        <section v-else class="card empty">家庭中还没有戒烟者。</section>
-      </section>
+          <div v-if="quitters.length > 1" class="quitter-switcher">
+            <button
+              v-for="member in quitters"
+              :key="member.id"
+              :class="{ active: member.userId === activeQuitter?.userId }"
+              @click="selectQuitter(member.userId)"
+            >{{ member.nickname }}</button>
+          </div>
+          <QuitterProgressCard
+            v-if="activeQuitter"
+            :summary="familyStore.quitterSummaries[activeQuitter.userId]"
+            :loading="familyStore.summariesLoading"
+            :is-current-user="activeQuitter.userId === authStore.user?.id"
+            @trend="viewTrend"
+          />
+          <section v-else class="card empty">家庭中还没有戒烟者，聊天仍然可以继续。</section>
+        </section>
 
-      <section class="card encouragement-list">
-        <div class="section-heading"><h2>最近鼓励</h2><span>彼此陪伴</span></div>
-        <div v-if="encouragementStore.loading" class="inline-state"><van-loading size="18"/> 正在加载…</div>
-        <div v-else-if="encouragementsLoadFailed" class="error-note">鼓励加载失败，请稍后重试</div>
-        <p v-else-if="encouragementStore.items.length===0" class="muted empty-copy">还没有鼓励，陪伴从第一句话开始。</p>
-        <article v-for="item in encouragementStore.items" v-else :key="item.id" class="encouragement-item"><div class="encouragement-content"><div class="mini-avatar">{{item.fromNickname.slice(0,1)}}</div><div><b>{{item.fromNickname}}</b><p>{{item.type==='message'?`“${item.message}”`:getReactionEmoji(item.type)}}</p></div></div><div class="item-meta"><time>{{formatEncouragementTime(item.createdAt)}}</time><button v-if="item.fromUserId===authStore.user?.id" @click="deleteEncouragement(item.id)">删除</button></div></article>
-      </section>
+        <FamilyChat
+          :messages="messageStore.items"
+          :encouragements="encouragementStore.items"
+          :members="familyStore.members"
+          :current-user-id="authStore.user?.id"
+          :reaction-target="reactionTarget"
+          :loading="messageStore.loading || encouragementStore.loading"
+          :load-failed="activityLoadFailed"
+          :warning="activityWarning"
+          :sending="messageStore.sending"
+          :reaction-disabled="sendDisabled"
+          :is-reaction-disabled="isReactionDisabled"
+          :message-disabled="messageUnavailable"
+          :realtime-status="messageStore.realtimeStatus"
+          @send="sendText"
+          @reaction="sendReaction"
+          @retry="familyStore.currentFamily && loadActivity(familyStore.currentFamily.id)"
+        />
+      </template>
 
-      <section class="members"><div class="section-heading"><h2>家庭成员</h2><span>{{familyStore.members.length}} 人</span></div><div class="member-circles"><FamilyMemberCard v-for="member in familyStore.members" :key="member.id" :member="member" :is-current-user="member.userId===authStore.user?.id" compact/></div></section>
+      <template v-else>
+        <section class="member-space">
+          <div class="section-heading"><div><span>家庭成员</span><h2>{{ familyStore.members.length }} 人同行</h2></div></div>
+          <div class="member-circles">
+            <FamilyMemberCard
+              v-for="member in familyStore.members"
+              :key="member.id"
+              :member="member"
+              :is-current-user="member.userId === authStore.user?.id"
+              compact
+            />
+          </div>
+        </section>
 
-      <section class="family-info"><div><span>家庭邀请码</span><b>{{familyStore.inviteCode}}</b></div><button @click="copyInviteCode">复制</button></section>
+        <section class="invite-card">
+          <div class="invite-icon"><van-icon name="qr" size="22" /></div>
+          <div><span>邀请家人加入</span><b>{{ familyStore.inviteCode }}</b><small>邀请码仅分享给家人</small></div>
+          <button @click="copyInviteCode">复制</button>
+        </section>
+      </template>
     </template>
 
-    <van-popup v-model:show="messagePopupOpen" round position="bottom"><section class="message-popup"><span>家庭陪伴</span><h2>给{{messageTarget?.nickname}}说句话</h2><van-field v-model="message" type="textarea" rows="4" autosize maxlength="200" show-word-limit placeholder="写一句简单的鼓励"/><van-button type="primary" round block :loading="encouragementStore.sending" :disabled="sendDisabled" @click="submitMessage">发送鼓励</van-button></section></van-popup>
-    <AppTabbar/>
+    <AppTabbar />
   </main>
 </template>
 
 <style scoped>
-.family-page{max-width:480px;margin:auto}.page-heading{display:flex;align-items:center;justify-content:space-between;margin:3px 2px 24px}.page-heading span{color:var(--green-700);font-size:13px;font-weight:700}.page-heading h1{margin:3px 0;font-size:28px;letter-spacing:-.04em}.page-heading p{margin:0;color:var(--text-muted);font-size:13px}.family-badge{display:grid;width:46px;height:46px;place-items:center;border-radius:16px;background:#fff;box-shadow:var(--shadow);color:var(--green-700)}.section-block{margin-bottom:14px}.section-heading{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}.section-heading h2{margin:0;font-size:19px}.section-heading span{color:var(--text-muted);font-size:13px}.quitter-block+.quitter-block{margin-top:14px}.encourage-panel{margin-top:10px;padding:17px;background:#fff;border-radius:20px;box-shadow:var(--shadow)}.encourage-panel>div:first-child{display:flex;align-items:baseline;justify-content:space-between}.encourage-panel span{color:var(--text-muted);font-size:12px}.reaction-row{display:flex;align-items:center;gap:9px;margin-top:14px;overflow-x:auto;padding:1px}.reaction-row button{display:grid;flex:0 0 43px;width:43px;height:43px;place-items:center;border:0;border-radius:50%;background:#f3f6f4;box-shadow:inset 0 0 0 1px rgba(42,96,66,.04);font-size:20px}.reaction-row button:disabled{opacity:.45}.reaction-row .message-action{display:flex;flex:0 0 auto;width:auto;margin-left:auto;padding:0 13px;border-radius:15px;color:var(--green-700);font-size:12px;gap:5px}.encouragement-list,.members{margin-bottom:14px}.empty-copy{padding:14px 0 4px}.inline-state{display:flex;gap:8px;padding:18px 0;color:var(--text-muted)}.error-note{padding:14px 0;color:#c45454}.encouragement-item{display:flex;justify-content:space-between;gap:12px;padding:14px 0}.encouragement-item+.encouragement-item{border-top:1px solid #f0f2f1}.encouragement-content{display:flex;gap:10px}.mini-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--green-100);color:var(--green-700);font-weight:700}.encouragement-item p{margin:5px 0 0;line-height:1.5}.item-meta{display:flex;flex-direction:column;align-items:flex-end;gap:7px;color:var(--text-muted);font-size:11px}.item-meta button{border:0;background:none;color:#9aa3b1;padding:0}.family-info{display:flex;align-items:center;justify-content:space-between;padding:12px 5px 22px;color:var(--text-muted);font-size:12px}.family-info div{display:flex;gap:10px;align-items:center}.family-info b{letter-spacing:1.5px;color:#68746e}.family-info button{border:0;background:transparent;color:var(--green-700)}.message-popup{max-width:480px;margin:auto;padding:24px 18px calc(24px + env(safe-area-inset-bottom))}.message-popup>span{color:var(--green-700);font-size:13px}.message-popup h2{margin:5px 0 16px;font-size:22px}.message-popup .van-field{background:#f7f8fa;border-radius:14px;margin-bottom:18px}.state{display:flex;flex-direction:column;align-items:center;gap:12px;padding:70px 20px;color:var(--text-muted)}.empty{text-align:center;color:var(--text-muted)}
-.member-circles{display:flex;gap:8px;overflow-x:auto;padding:14px 9px;border-radius:20px;background:linear-gradient(135deg,rgba(231,243,234,.8),rgba(255,255,255,.55));scrollbar-width:none}.reaction-row button:not(:disabled):active{transform:scale(.9)}
-.encouragement-list{background:transparent;box-shadow:none;padding-left:2px;padding-right:2px}.encouragement-item{align-items:flex-start;margin:8px 0;padding:13px 14px;border-radius:16px;background:rgba(255,255,255,.82);box-shadow:0 6px 20px rgba(25,55,43,.045)}.encouragement-item+.encouragement-item{border-top:0}.encouragement-item:nth-of-type(even){margin-left:18px;background:linear-gradient(135deg,#edf7ef,#fff)}.reaction-row button{transition:transform .16s ease,background .2s ease}.reaction-row button:not(:disabled):hover{background:#e4f1e8}
+.family-page{max-width:480px;margin:auto}.page-heading{display:flex;align-items:center;justify-content:space-between;margin:3px 2px 18px}.page-heading>div:first-child{display:flex;flex-direction:column}.page-heading span{color:var(--green-700);font-size:12px;font-weight:750}.page-heading h1{margin:3px 0;font-size:29px;letter-spacing:-.045em}.page-heading p{margin:0;color:var(--text-muted);font-size:13px}.family-mark{position:relative;display:grid;width:49px;height:49px;place-items:center;border-radius:17px;background:linear-gradient(145deg,#438e5d,#256d4b);box-shadow:0 10px 25px rgba(42,105,73,.2);color:#fff;font-size:20px}.family-mark i{position:absolute;right:-4px;top:-4px;display:grid;min-width:19px;height:19px;place-items:center;border:2px solid var(--page);border-radius:99px;background:#fff;color:var(--green-700);font-size:9px;font-style:normal}.space-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:16px;padding:4px;border-radius:16px;background:#e9eeeb}.space-tabs button{display:flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:13px;padding:10px;background:transparent;color:#77837d;font-size:13px;font-weight:650}.space-tabs button.active{background:#fff;color:var(--green-700);box-shadow:0 4px 14px rgba(31,73,50,.08)}.progress-section{margin-bottom:14px}.section-heading{display:flex;align-items:flex-end;justify-content:space-between;margin:0 2px 11px}.section-heading span{color:var(--green-700);font-size:11px;font-weight:750}.section-heading h2{margin:3px 0 0;font-size:19px}.section-heading>button{display:flex;align-items:center;gap:2px;border:0;background:transparent;color:var(--green-700);font-size:12px}.quitter-switcher{display:flex;gap:7px;margin-bottom:10px;overflow-x:auto}.quitter-switcher button{border:1px solid #dce7df;border-radius:99px;padding:6px 12px;background:#fff;color:var(--text-muted);font-size:11px}.quitter-switcher button.active{border-color:var(--green-500);background:var(--green-100);color:var(--green-700);font-weight:700}.member-space{padding:20px;border-radius:24px;background:linear-gradient(145deg,rgba(230,243,234,.92),rgba(255,255,255,.88));box-shadow:var(--shadow)}.member-circles{display:flex;gap:10px;overflow-x:auto;padding:8px 0 2px;scrollbar-width:none}.invite-card{display:flex;align-items:center;gap:13px;margin-top:14px;padding:17px;border-radius:20px;background:rgba(255,255,255,.68);box-shadow:inset 0 0 0 1px rgba(40,100,70,.05)}.invite-icon{display:grid;flex:0 0 42px;width:42px;height:42px;place-items:center;border-radius:14px;background:var(--green-100);color:var(--green-700)}.invite-card>div:nth-child(2){display:flex;min-width:0;flex:1;flex-direction:column}.invite-card span{color:var(--text-muted);font-size:10px}.invite-card b{margin:2px 0;letter-spacing:1.5px;color:#485d52}.invite-card small{color:#9ba49f;font-size:9px}.invite-card button{border:0;border-radius:12px;padding:8px 11px;background:#fff;color:var(--green-700);box-shadow:0 5px 14px rgba(33,71,50,.06);font-size:11px}.state{display:flex;min-height:65vh;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-muted)}.empty{text-align:center;color:var(--text-muted)}
 </style>

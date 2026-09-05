@@ -9,6 +9,8 @@ export type EncouragementType =
   | 'celebrate'
   | 'message'
 
+export type FamilyMessageType = 'text' | 'system_checkin' | 'system_milestone'
+
 export interface Profile {
   id: string
   nickname: string
@@ -65,3 +67,12 @@ export interface Encouragement {
   created_at: string
 }
 
+export interface FamilyMessage {
+  id: string
+  family_id: string
+  sender_id: string | null
+  type: FamilyMessageType
+  content: string
+  event_key: string | null
+  created_at: string
+}

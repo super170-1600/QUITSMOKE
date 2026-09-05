@@ -14,6 +14,7 @@ import { getSmokingProfileByUserId } from '@/api/smokingProfile'
 import { getCheckinsForUserBetween } from '@/api/checkin'
 import { buildFamilyQuitterSummary } from '@/utils/familySummary'
 import { getLocalDateString } from '@/utils/date'
+import { resolveSelectedQuitter } from '@/utils/familySelection'
 
 function toFamilyModel(family: Family): FamilyModel {
   return { id: family.id, name: family.name, inviteCode: family.invite_code, createdBy: family.created_by, createdAt: family.created_at }
@@ -35,6 +36,7 @@ export const useFamilyStore = defineStore('family', () => {
   const currentFamily = ref<FamilyModel | null>(null)
   const currentMember = ref<FamilyMemberModel | null>(null)
   const members = ref<FamilyMemberModel[]>([])
+  const selectedQuitterId = ref('')
   const quitterSummaries = ref<Record<string, FamilyQuitterSummary>>({})
   const summariesLoading = ref(false)
   const loading = ref(false)
@@ -46,6 +48,15 @@ export const useFamilyStore = defineStore('family', () => {
   const isQuitter = computed(() => currentMember.value?.role === 'quitter')
   const isSupporter = computed(() => currentMember.value?.role === 'supporter')
   const inviteCode = computed(() => currentFamily.value?.inviteCode ?? '')
+  const quitterMembers = computed(() => members.value.filter((member) => member.role === 'quitter'))
+  const selectedQuitter = computed(() => (
+    resolveSelectedQuitter(members.value, selectedQuitterId.value)
+  ))
+
+  function selectQuitter(userId?: string) {
+    selectedQuitterId.value = resolveSelectedQuitter(members.value, userId)?.userId ?? ''
+    return selectedQuitter.value
+  }
 
   async function loadMembers() {
     if (!currentFamily.value) {
@@ -54,6 +65,7 @@ export const useFamilyStore = defineStore('family', () => {
     }
     const rows = await getFamilyMembers(currentFamily.value.id)
     members.value = rows.map(toMemberModel)
+    selectQuitter(selectedQuitterId.value)
     const ownId = authStore.user?.id
     currentMember.value = members.value.find((member) => member.userId === ownId) ?? currentMember.value
     return members.value
@@ -93,6 +105,7 @@ export const useFamilyStore = defineStore('family', () => {
       currentFamily.value = result ? toFamilyModel(result.family) : null
       currentMember.value = result ? toMemberModel(result.membership) : null
       members.value = []
+      if (!result) selectedQuitterId.value = ''
       if (result) await loadMembers()
       initializedForUser.value = userId
       initialized.value = true
@@ -116,5 +129,5 @@ export const useFamilyStore = defineStore('family', () => {
     await refreshFamily()
   }
 
-  return { currentFamily, currentMember, members, quitterSummaries, loading, summariesLoading, initialized, hasFamily, isQuitter, isSupporter, inviteCode, initializeFamily, createFamily, joinFamily, loadMembers, loadQuitterSummaries, refreshFamily }
+  return { currentFamily, currentMember, members, selectedQuitterId, quitterMembers, selectedQuitter, quitterSummaries, loading, summariesLoading, initialized, hasFamily, isQuitter, isSupporter, inviteCode, selectQuitter, initializeFamily, createFamily, joinFamily, loadMembers, loadQuitterSummaries, refreshFamily }
 })

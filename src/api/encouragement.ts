@@ -33,16 +33,39 @@ export async function getEncouragements(familyId: string, limit = 30) {
   }) satisfies EncouragementWithNickname[]
 }
 
+export async function getMyEncouragementActivity(familyId: string, limit = 100) {
+  const userId = await getAuthenticatedUserId()
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 100)
+  const { data, error, count } = await requireSupabaseClient()
+    .from('encouragements')
+    .select('id, family_id, from_user_id, to_user_id, type, message, created_at, profiles!encouragements_from_user_id_fkey(nickname)', { count: 'exact' })
+    .eq('family_id', familyId)
+    .eq('from_user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(safeLimit)
+  if (error) throw error
+  const items = (data as unknown as EncouragementWithProfileRow[]).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
+    return { id: row.id, family_id: row.family_id, from_user_id: row.from_user_id, to_user_id: row.to_user_id, type: row.type, message: row.message, created_at: row.created_at, from_nickname: profile?.nickname ?? '家庭成员' }
+  }) satisfies EncouragementWithNickname[]
+  return { items, total: count ?? items.length }
+}
+
 export async function sendReaction(input: { familyId: string; toUserId: string; type: ReactionType }) {
   const fromUserId = await getAuthenticatedUserId()
-  const { error } = await requireSupabaseClient().from('encouragements').insert({
-    family_id: input.familyId,
-    from_user_id: fromUserId,
-    to_user_id: input.toUserId,
-    type: input.type,
-    message: null,
-  })
+  const { data, error } = await requireSupabaseClient()
+    .from('encouragements')
+    .insert({
+      family_id: input.familyId,
+      from_user_id: fromUserId,
+      to_user_id: input.toUserId,
+      type: input.type,
+      message: null,
+    })
+    .select('id, family_id, from_user_id, to_user_id, type, message, created_at')
+    .single()
   if (error) throw error
+  return data as Encouragement
 }
 
 export async function sendMessage(input: { familyId: string; toUserId: string; message: string }) {

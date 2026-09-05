@@ -16,3 +16,16 @@ export function normalizeEncouragementMessage(message: string) {
   const normalized = message.trim()
   return normalized.length > 0 && normalized.length <= 200 ? normalized : null
 }
+
+export function getReactionCooldownKey(toUserId: string, type: ReactionType) {
+  return `${toUserId}:${type}`
+}
+
+export function isReactionCooldownActive(
+  cooldownUntil: Readonly<Record<string, number>>,
+  toUserId: string,
+  type: ReactionType,
+  now = Date.now(),
+) {
+  return (cooldownUntil[getReactionCooldownKey(toUserId, type)] ?? 0) > now
+}

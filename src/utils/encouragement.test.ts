@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getReactionEmoji, normalizeEncouragementMessage } from '@/utils/encouragement'
+import { getReactionCooldownKey, getReactionEmoji, isReactionCooldownActive, normalizeEncouragementMessage } from '@/utils/encouragement'
 import { buildFamilyQuitterSummary } from '@/utils/familySummary'
 import type { FamilyMemberModel, SmokingProfileModel } from '@/types/domain'
 
@@ -12,6 +12,14 @@ describe('encouragement helpers', () => {
     expect(normalizeEncouragementMessage('  今天继续坚持！  ')).toBe('今天继续坚持！')
     expect(normalizeEncouragementMessage('   ')).toBeNull()
     expect(normalizeEncouragementMessage('鼓'.repeat(201))).toBeNull()
+  })
+
+  it('scopes reaction cooldown to the same recipient and reaction', () => {
+    const cooldowns = { [getReactionCooldownKey('dad', 'heart')]: 11_000 }
+    expect(isReactionCooldownActive(cooldowns, 'dad', 'heart', 1_000)).toBe(true)
+    expect(isReactionCooldownActive(cooldowns, 'dad', 'clap', 1_000)).toBe(false)
+    expect(isReactionCooldownActive(cooldowns, 'mum', 'heart', 1_000)).toBe(false)
+    expect(isReactionCooldownActive(cooldowns, 'dad', 'heart', 11_000)).toBe(false)
   })
 })
 

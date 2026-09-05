@@ -9,7 +9,8 @@
 - `family_members`：用户与家庭的多对多关系，同时保存该用户在该家庭中的 `quitter` 或 `supporter` 身份。
 - `smoking_profiles`：用户的一对一戒烟设置，包括开始日期、每日基线、每包支数和价格。
 - `checkins`：每日打卡。`(user_id, checkin_date)` 唯一，保证每位用户每天最多一条。
-- `encouragements`：家庭内成员之间的表情或文字鼓励。
+- `encouragements`：家庭内成员之间的快捷表情鼓励与旧版定向留言。
+- `messages`：轻量家庭消息流，包含成员文字消息与打卡/里程碑系统事件。
 
 关系简图：
 
@@ -18,6 +19,7 @@ auth.users 1--1 profiles 1--N family_members N--1 families
                          1--1 smoking_profiles
                          1--N checkins
 families 1--N encouragements (from_user_id / to_user_id -> profiles)
+families 1--N messages (sender_id -> profiles; system messages have no sender)
 ```
 
 角色属于 `family_members`，而不是 `profiles`，因为同一用户未来可以在不同家庭承担不同身份。
@@ -40,6 +42,7 @@ families 1--N encouragements (from_user_id / to_user_id -> profiles)
 - Smoking profile：本人及同家庭成员可读；仅本人可新增、修改、删除。
 - Checkin：本人及同家庭成员可读；仅本人可新增、修改、删除。
 - Encouragement：家庭成员可读；发送时发送者必须是当前用户，发送者和接收者必须都在指定家庭；仅发送者可删除，不允许更新。
+- Message：家庭成员可读；客户端只能以本人身份发送 `text`，且 INSERT 权限仅开放家庭、发送人、类型和正文四列，不能自定义时间或事件键。`system_checkin` 与 `system_milestone` 只能由安全触发器写入，客户端不能伪造。
 
 表级权限也按最小操作集合显式授予：匿名角色没有业务表权限，认证角色没有 `family_members` 写权限或 `encouragements` 更新权限。RLS 在这些 grants 之上继续执行行级限制。
 
@@ -73,7 +76,7 @@ const { data, error } = await supabase.rpc('join_family_by_invite_code', {
 
 1. 打开 Supabase Dashboard → SQL Editor。
 2. 新建 Query，粘贴并执行 `docs/database.sql` 全文。
-3. 确认六张表、函数、trigger 和 policies 已创建。
+3. 确认七张表、函数、trigger 和 policies 已创建。
 4. 后续修改应保留在该脚本或正式 migration 中，不要只在 Dashboard 手工修改而不回写代码库。
 
 脚本使用 `create table if not exists`、`create or replace function`、`drop policy/trigger if exists`，可在同一结构版本上重复执行。它不是任意旧 schema 的自动升级器；已有列定义变化时仍应编写 migration。
@@ -91,5 +94,14 @@ const { data, error } = await supabase.rpc('join_family_by_invite_code', {
 7. 以 A 登录：尝试用 B 的 `user_id` INSERT checkin，应被 RLS 拒绝。
 8. 以 A 登录：向同家庭 B INSERT encouragement，应成功。
 9. 以 C 登录：向 A/B 的家庭 INSERT encouragement，应被 RLS 拒绝。
+10. A/B 可读取同一家庭 messages；C 查询应为空，且任何登录用户都不能直接 INSERT system 类型消息。
+
+## 轻量家庭消息流
+
+已有数据库只需执行 `docs/messages_patch.sql`，无需重建原有表。`messages` 保留文字、系统打卡和系统里程碑三类消息；快捷 Reaction 继续使用 `encouragements`，前端把两者按时间合并展示。
+
+`checkins_publish_family_event` 在戒烟者新增或修改打卡后幂等写入系统事件：同一打卡通过 `event_key` 更新而不是重复插入；连续无烟达到 3、7、14、30 天时增加里程碑事件。历史日期的系统事件使用该日期作为时间线位置，避免测试数据批量写入后挤满最新动态。
+
+脚本会把 `messages` 加入 `supabase_realtime` publication。前端订阅当前家庭的 INSERT/UPDATE 变化，并在事件到达后重新读取受 RLS 保护的消息列表。
 
 还应验证唯一约束和 CHECK：同一用户同一天重复打卡、超过 200 支、烟瘾不在 1–5、超长备注、非法成员角色和空文字鼓励都应失败。

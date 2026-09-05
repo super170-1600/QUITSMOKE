@@ -20,6 +20,8 @@ VITE_SUPABASE_ANON_KEY=your-browser-safe-anon-or-publishable-value
 
 首次使用前，在 Supabase SQL Editor 执行 `docs/database.sql`。数据库结构与 RLS 说明见 `docs/DATABASE.md`，真实多账号验证步骤见 `docs/REAL_WORLD_TEST.md`。
 
+如果现有 Supabase 项目已经执行过旧版六表脚本，只需再执行 `docs/messages_patch.sql`，即可增加家庭动态、打卡系统事件与 Realtime；不需要重建原有表。
+
 ## 构建与部署
 
 ```bash

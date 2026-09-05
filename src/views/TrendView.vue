@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed,onMounted,ref } from 'vue'
 import { showFailToast } from 'vant'
-import { useRoute } from 'vue-router'
+import { useRoute,useRouter } from 'vue-router'
 import AppTabbar from '@/components/AppTabbar.vue'
 import BaselineComparison from '@/components/BaselineComparison.vue'
 import MetricTrendChart from '@/components/MetricTrendChart.vue'
@@ -13,12 +13,12 @@ import { useSmokingStore } from '@/stores/smoking'
 import type { FamilyQuitterSummary } from '@/types/domain'
 import { buildBaselineComparison,buildHeatmapData,buildSavingsTrend,buildSmokingTrend,type HeatmapPoint,type TimeRange } from '@/utils/visualization'
 
-const familyStore=useFamilyStore();const smokingStore=useSmokingStore();const route=useRoute()
-const selectedQuitterId=ref('');const loading=ref(true);const loadFailed=ref(false);const activeSection=ref(0)
+const familyStore=useFamilyStore();const smokingStore=useSmokingStore();const route=useRoute();const router=useRouter()
+const loading=ref(true);const loadFailed=ref(false);const activeSection=ref(0)
 const timeRange=ref<TimeRange>('30d');const metric=ref<'smoking'|'craving'>('smoking');const chartType=ref<'line'|'bar'>('line');const selectedDay=ref<HeatmapPoint|null>(null);const dayPopupOpen=ref(false)
 const ownSummary=computed<FamilyQuitterSummary|undefined>(()=>{const member=familyStore.currentMember;if(!member||!smokingStore.smokingProfile||!smokingStore.statistics)return undefined;return{member,smokingProfile:smokingStore.smokingProfile,todayCheckin:smokingStore.todayCheckin,statistics:smokingStore.statistics,trendData:smokingStore.trendData,checkins:smokingStore.checkins,loadFailed:false}})
 const familyQuitterSummaries=computed(()=>familyStore.members.filter(member=>member.role==='quitter').map(member=>familyStore.quitterSummaries[member.userId]).filter((summary):summary is FamilyQuitterSummary=>Boolean(summary)))
-const activeSummary=computed(()=>familyStore.isQuitter?ownSummary.value:familyQuitterSummaries.value.find(summary=>summary.member.userId===selectedQuitterId.value)??familyQuitterSummaries.value[0])
+const activeSummary=computed(()=>familyStore.isQuitter?ownSummary.value:familyStore.selectedQuitter?familyStore.quitterSummaries[familyStore.selectedQuitter.userId]:familyQuitterSummaries.value[0])
 const trendPoints=computed(()=>activeSummary.value?.smokingProfile?buildSmokingTrend(activeSummary.value.checkins,activeSummary.value.smokingProfile,timeRange.value):[])
 const heatmapPoints=computed(()=>activeSummary.value?.smokingProfile?buildHeatmapData(activeSummary.value.checkins,activeSummary.value.smokingProfile,timeRange.value):[])
 const savingsPoints=computed(()=>activeSummary.value?.smokingProfile?buildSavingsTrend(activeSummary.value.checkins,activeSummary.value.smokingProfile,timeRange.value):[])
@@ -28,7 +28,8 @@ const latestSavings=computed(()=>savingsPoints.value[savingsPoints.value.length-
 function formatAverage(value:number|null){return value===null?'—':`${value.toFixed(1)} 支`}
 function formatReduction(value:number|null){return value===null?'暂无数据':`${value>=0?'↓':'↑'} ${Math.abs(value*100).toFixed(0)}%`}
 function openDay(point:HeatmapPoint){selectedDay.value=point;dayPopupOpen.value=true}
-async function loadPage(){loading.value=true;loadFailed.value=false;try{await familyStore.initializeFamily();if(familyStore.isQuitter)await smokingStore.ensureStatisticsLoaded();else{await familyStore.loadQuitterSummaries();const requested=typeof route.query.member==='string'?route.query.member:'';selectedQuitterId.value=familyQuitterSummaries.value.some(summary=>summary.member.userId===requested)?requested:familyQuitterSummaries.value[0]?.member.userId??''}}catch(error:unknown){console.error('加载趋势失败',error);loadFailed.value=true;showFailToast('加载失败，请检查网络后重试')}finally{loading.value=false}}
+async function loadPage(){loading.value=true;loadFailed.value=false;try{await familyStore.initializeFamily();if(familyStore.isQuitter)await smokingStore.ensureStatisticsLoaded();else{await familyStore.loadQuitterSummaries();const requested=typeof route.query.member==='string'?route.query.member:'';familyStore.selectQuitter(requested||familyStore.selectedQuitterId)}}catch(error:unknown){console.error('加载趋势失败',error);loadFailed.value=true;showFailToast('加载失败，请检查网络后重试')}finally{loading.value=false}}
+function selectTrendQuitter(userId:string|number){const id=String(userId);familyStore.selectQuitter(id);void router.replace({query:{...route.query,member:id}})}
 onMounted(loadPage)
 </script>
 
@@ -38,7 +39,7 @@ onMounted(loadPage)
     <section v-else-if="loadFailed" class="card state"><span>暂时无法读取趋势</span><van-button plain round type="primary" @click="loadPage">重新加载</van-button></section>
     <template v-else>
       <header class="page-heading"><div><span>{{familyStore.currentFamily?.name}}</span><h1>趋势</h1></div><div v-if="activeSummary" class="viewer"><span>{{activeSummary.member.nickname.slice(0,1)}}</span><div><small>正在查看</small><b>{{activeSummary.member.nickname}}</b></div></div></header>
-      <van-tabs v-if="familyStore.isSupporter&&familyQuitterSummaries.length>1" v-model:active="selectedQuitterId" class="member-tabs" shrink><van-tab v-for="summary in familyQuitterSummaries" :key="summary.member.userId" :name="summary.member.userId" :title="summary.member.nickname"/></van-tabs>
+      <van-tabs v-if="familyStore.isSupporter&&familyQuitterSummaries.length>1" :active="familyStore.selectedQuitterId" class="member-tabs" shrink @change="selectTrendQuitter"><van-tab v-for="summary in familyQuitterSummaries" :key="summary.member.userId" :name="summary.member.userId" :title="summary.member.nickname"/></van-tabs>
       <template v-if="activeSummary?.statistics&&activeSummary.smokingProfile">
         <van-tabs v-model:active="activeSection" class="section-tabs" animated swipeable><van-tab title="趋势"/><van-tab title="日历"/><van-tab title="成果"/></van-tabs>
         <TimeRangeSelector v-model="timeRange" class="range" />

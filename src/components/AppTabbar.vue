@@ -4,7 +4,7 @@ const route = useRoute(); const router = useRouter()
 const tabs = [
   { path:'/home', label:'首页', icon:'home-o' },
   { path:'/trend', label:'趋势', icon:'chart-trending-o' },
-  { path:'/family', label:'家人', icon:'friends-o' },
+  { path:'/family', label:'家庭', icon:'friends-o' },
   { path:'/profile', label:'我的', icon:'user-o' }
 ]
 </script>
