@@ -95,7 +95,7 @@ export async function createFamily(name: string, role: FamilyRole) {
       family_name: name.trim(),
       member_role: role,
     }), '创建家庭')
-    const result = (data as unknown as CreateFamilyRpcRow[] | null)?.[0]
+    const result = (Array.isArray(data) ? data[0] : data) as CreateFamilyRpcRow | null
     if (!result) throw new Error('家庭创建后未返回结果。')
     return result
   } catch (error: unknown) {
@@ -110,8 +110,10 @@ export async function joinFamilyByInviteCode(inviteCode: string, role: FamilyRol
       invite_code: inviteCode.trim().toUpperCase(),
       member_role: role,
     }), '加入家庭')
-    if (typeof data !== 'string') throw new Error('加入家庭后未返回结果。')
-    return data
+    const result = Array.isArray(data) ? data[0] : data
+    const familyId = typeof result === 'string' ? result : result?.family_id
+    if (typeof familyId !== 'string') throw new Error('加入家庭后未返回结果。')
+    return familyId
   } catch (error: unknown) {
     logRpcError('join_family_by_invite_code', error)
     throw error

@@ -3,8 +3,11 @@ import { requireCloudbaseDatabase } from '@/services/cloudbase'
 import { requireSupabaseClient } from '@/services/supabase'
 import { backendProvider } from './provider'
 import type { BackendProvider } from './types'
+import { runCloudbaseRpc } from './rpc'
 
-export type BackendDatabaseClient = Pick<SupabaseClient, 'from' | 'rpc'>
+export type BackendDatabaseClient = Pick<SupabaseClient, 'from'> & {
+  rpc(name: string, args?: Record<string, unknown>, options?: { head?: boolean; get?: boolean; count?: 'exact' | 'planned' | 'estimated' }): PromiseLike<{ data: any; error: unknown }>
+}
 
 function isBackendDatabaseClient(value: unknown): value is BackendDatabaseClient {
   if (typeof value !== 'object' || value === null) return false
@@ -23,12 +26,17 @@ export function selectBackendDatabaseClient(
   provider: BackendProvider,
   clients: { supabase: unknown; cloudbase: unknown },
 ): BackendDatabaseClient {
-  return adaptBackendDatabaseClient(clients[provider])
+  const client = adaptBackendDatabaseClient(clients[provider])
+  if (provider !== 'cloudbase') return client
+  return {
+    from: client.from.bind(client),
+    rpc: (name, args, options) => runCloudbaseRpc(client.rpc(name, args, options), name),
+  }
 }
 
 export function getBackendDatabase(): BackendDatabaseClient {
   if (backendProvider === 'cloudbase') {
-    return adaptBackendDatabaseClient(requireCloudbaseDatabase())
+    return selectBackendDatabaseClient('cloudbase', { cloudbase: requireCloudbaseDatabase(), supabase: null })
   }
   return adaptBackendDatabaseClient(requireSupabaseClient())
 }

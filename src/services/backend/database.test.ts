@@ -7,7 +7,7 @@ describe('database adapter mapping', () => {
 
   it('selects the requested PostgREST-compatible client', () => {
     expect(selectBackendDatabaseClient('supabase', { supabase, cloudbase })).toBe(supabase)
-    expect(selectBackendDatabaseClient('cloudbase', { supabase, cloudbase })).toBe(cloudbase)
+    expect(selectBackendDatabaseClient('cloudbase', { supabase, cloudbase })).toHaveProperty('rpc')
   })
 
   it('rejects a client that cannot provide both table and RPC access', () => {
