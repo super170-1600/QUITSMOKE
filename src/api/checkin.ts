@@ -1,3 +1,4 @@
+import { CHECKIN_COLUMNS } from './columns'
 import { getAuthenticatedUserId, getBackendDatabase, runBackendRequest } from '@/services/backend'
 import { normalizeUserIdFields } from '@/services/backend/userId'
 import type { Checkin } from '@/types/database'
@@ -29,7 +30,7 @@ export async function getCheckinByDate(date: string) {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('checkins')
-      .select('*')
+      .select(CHECKIN_COLUMNS)
       .eq('user_id', userId)
       .eq('checkin_date', date)
       .maybeSingle(),
@@ -44,7 +45,7 @@ export async function getRecentCheckins(limit = 7) {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('checkins')
-      .select('*')
+      .select(CHECKIN_COLUMNS)
       .eq('user_id', userId)
       .order('checkin_date', { ascending: false })
       .limit(safeLimit),
@@ -58,7 +59,7 @@ export async function getCheckinsBetween(startDate: string, endDate: string) {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('checkins')
-      .select('*')
+      .select(CHECKIN_COLUMNS)
       .eq('user_id', userId)
       .gte('checkin_date', startDate)
       .lte('checkin_date', endDate)
@@ -72,7 +73,7 @@ export async function getCheckinsForUserBetween(userId: string, startDate: strin
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('checkins')
-      .select('*')
+      .select(CHECKIN_COLUMNS)
       .eq('user_id', userId)
       .gte('checkin_date', startDate)
       .lte('checkin_date', endDate)
@@ -88,7 +89,7 @@ export async function createCheckin(input: CreateCheckinInput) {
     getBackendDatabase()
       .from('checkins')
       .insert({ ...input, user_id: userId })
-      .select('*')
+      .select(CHECKIN_COLUMNS)
       .single(),
     '创建打卡',
   )
@@ -103,7 +104,7 @@ export async function updateCheckin(id: string, input: UpdateCheckinInput) {
       .update(input)
       .eq('id', id)
       .eq('user_id', userId)
-      .select('*')
+      .select(CHECKIN_COLUMNS)
       .single(),
     '更新打卡',
   )

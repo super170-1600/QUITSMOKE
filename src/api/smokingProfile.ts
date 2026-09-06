@@ -1,3 +1,4 @@
+import { SMOKING_PROFILE_COLUMNS } from './columns'
 import { getAuthenticatedUserId, getBackendDatabase, runBackendRequest } from '@/services/backend'
 import { normalizeUserIdFields } from '@/services/backend/userId'
 import type { SmokingProfile } from '@/types/database'
@@ -16,7 +17,7 @@ export async function getMySmokingProfile() {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('smoking_profiles')
-      .select('*')
+      .select(SMOKING_PROFILE_COLUMNS)
       .eq('user_id', userId)
       .maybeSingle(),
     '读取戒烟设置',
@@ -28,7 +29,7 @@ export async function getSmokingProfileByUserId(userId: string) {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('smoking_profiles')
-      .select('*')
+      .select(SMOKING_PROFILE_COLUMNS)
       .eq('user_id', userId)
       .maybeSingle(),
     '读取家庭戒烟设置',
@@ -42,7 +43,7 @@ export async function createMySmokingProfile(input: CreateSmokingProfileInput) {
     getBackendDatabase()
       .from('smoking_profiles')
       .insert({ ...input, user_id: userId })
-      .select('*')
+      .select(SMOKING_PROFILE_COLUMNS)
       .single(),
     '创建戒烟设置',
   )
@@ -56,7 +57,7 @@ export async function updateMySmokingProfile(input: UpdateSmokingProfileInput) {
       .from('smoking_profiles')
       .update(input)
       .eq('user_id', userId)
-      .select('*')
+      .select(SMOKING_PROFILE_COLUMNS)
       .single(),
     '更新戒烟设置',
   )

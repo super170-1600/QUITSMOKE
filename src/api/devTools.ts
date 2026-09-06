@@ -1,3 +1,4 @@
+import { CHECKIN_COLUMNS } from './columns'
 import { getAuthenticatedUserId, getBackendDatabase, runBackendRequest } from '@/services/backend'
 import { normalizeUserIdFields } from '@/services/backend/userId'
 import type { Checkin } from '@/types/database'
@@ -34,7 +35,7 @@ export async function upsertMyDevCheckin(input: DevCheckinInput) {
     getBackendDatabase()
       .from('checkins')
       .upsert({ ...input, user_id: userId }, { onConflict: 'user_id,checkin_date' })
-      .select('*')
+      .select(CHECKIN_COLUMNS)
       .single(),
     '保存测试打卡',
   )
@@ -75,7 +76,7 @@ export async function replaceMyDevCheckins(startDate: string, endDate: string, i
     client
       .from('checkins')
       .upsert(inputs.map((input) => ({ ...input, user_id: userId })), { onConflict: 'user_id,checkin_date' })
-      .select('*'),
+      .select(CHECKIN_COLUMNS),
     '批量保存测试打卡',
   )
   const includedDates = new Set(inputs.map((input) => input.checkin_date))
