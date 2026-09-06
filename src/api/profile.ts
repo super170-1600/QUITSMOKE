@@ -40,7 +40,7 @@ export async function getMyProfile(knownUserId?: string) {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('profiles')
-      .select('id, nickname, created_at, updated_at')
+      .select('id::text, nickname, created_at, updated_at')
       .eq('id', userId)
       .maybeSingle(),
     '读取个人资料',
@@ -59,7 +59,7 @@ export async function updateMyNickname(nicknameValue: string) {
       .from('profiles')
       .update({ nickname })
       .eq('id', userId)
-      .select('id, nickname, created_at, updated_at')
+      .select('id::text, nickname, created_at, updated_at')
       .single(),
     '更新个人资料',
   )

@@ -22,7 +22,7 @@ export async function getFamilyMessages(familyId: string, limit = 80) {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('messages')
-      .select('id, family_id, sender_id, type, content, event_key, created_at, profiles!messages_sender_id_fkey(nickname)')
+      .select('id, family_id, sender_id::text, type, content, event_key, created_at, profiles!messages_sender_id_fkey(nickname)')
       .eq('family_id', familyId)
       .order('created_at', { ascending: false })
       .limit(safeLimit),
@@ -51,7 +51,7 @@ export async function getMyFamilyMessageActivity(familyId: string, limit = 100) 
   const { data, count } = await runBackendRequest(
     getBackendDatabase()
       .from('messages')
-      .select('id, family_id, sender_id, type, content, event_key, created_at, profiles!messages_sender_id_fkey(nickname)', { count: 'exact' })
+      .select('id, family_id, sender_id::text, type, content, event_key, created_at, profiles!messages_sender_id_fkey(nickname)', { count: 'exact' })
       .eq('family_id', familyId)
       .eq('sender_id', senderId)
       .eq('type', 'text')
@@ -85,7 +85,7 @@ export async function sendFamilyTextMessage(familyId: string, contentValue: stri
     getBackendDatabase()
       .from('messages')
       .insert({ family_id: familyId, sender_id: senderId, type: 'text', content })
-      .select('id, family_id, sender_id, type, content, event_key, created_at')
+      .select('id, family_id, sender_id::text, type, content, event_key, created_at')
       .single(),
     '发送家庭消息',
   )

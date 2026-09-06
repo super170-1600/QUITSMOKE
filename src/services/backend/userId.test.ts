@@ -9,10 +9,14 @@ describe('user id normalization', () => {
     expect(normalizeNullableUserId(null)).toBeNull()
   })
 
-  it('serializes bigint and number adapter values without numeric validation', () => {
+  it('serializes bigint and safe integer adapter values', () => {
     expect(normalizeUserId(9007199254740993n)).toBe('9007199254740993')
     expect(normalizeUserId(12345)).toBe('12345')
-    expect(normalizeUserId(Number.MAX_SAFE_INTEGER + 1)).toBe(String(Number.MAX_SAFE_INTEGER + 1))
+    expect(normalizeUserId(Number.MAX_SAFE_INTEGER)).toBe(String(Number.MAX_SAFE_INTEGER))
+  })
+
+  it.each([Number('2096133324830961665'), Number.MAX_SAFE_INTEGER + 1, NaN, Infinity, 1.5])('rejects unsafe numeric ID %s', (value) => {
+    expect(() => normalizeUserId(value)).toThrow('安全整数')
   })
 
   it('normalizes only declared user id fields and preserves business UUIDs', () => {

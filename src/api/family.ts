@@ -38,7 +38,7 @@ export async function getMyFamilyMembership() {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('family_members')
-      .select('id, family_id, user_id, role, joined_at')
+      .select('id, family_id, user_id::text, role, joined_at')
       .eq('user_id', userId)
       .order('joined_at', { ascending: true }),
     '读取家庭成员关系',
@@ -52,7 +52,7 @@ export async function getMyFamilies() {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('families')
-      .select('id, name, invite_code, created_by, created_at, updated_at')
+      .select('id, name, invite_code, created_by::text, created_at, updated_at')
       .in('id', memberships.map((membership) => membership.family_id)),
     '读取家庭',
   )
@@ -66,7 +66,7 @@ export async function getCurrentFamily(): Promise<CurrentFamilyResult | null> {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('families')
-      .select('id, name, invite_code, created_by, created_at, updated_at')
+      .select('id, name, invite_code, created_by::text, created_at, updated_at')
       .eq('id', membership.family_id)
       .single(),
     '读取当前家庭',
@@ -78,7 +78,7 @@ export async function getFamilyMembers(familyId: string) {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('family_members')
-      .select('id, family_id, user_id, role, joined_at, profiles!family_members_user_id_fkey(nickname)')
+      .select('id, family_id, user_id::text, role, joined_at, profiles!family_members_user_id_fkey(nickname)')
       .eq('family_id', familyId)
       .order('joined_at', { ascending: true }),
     '读取家庭成员',

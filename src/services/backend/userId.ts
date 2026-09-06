@@ -9,7 +9,12 @@ export function normalizeUserId(value: unknown): string {
 
   if (typeof value === 'bigint') return value.toString()
 
-  if (typeof value === 'number') return String(value)
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) {
+      throw new Error('用户 ID 超出安全整数范围，请以字符串返回，避免精度丢失。')
+    }
+    return String(value)
+  }
 
   throw new Error('无法识别用户 ID。')
 }

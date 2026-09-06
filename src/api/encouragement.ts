@@ -21,7 +21,7 @@ export async function getEncouragements(familyId: string, limit = 30) {
   const { data } = await runBackendRequest(
     getBackendDatabase()
       .from('encouragements')
-      .select('id, family_id, from_user_id, to_user_id, type, message, created_at, profiles!encouragements_from_user_id_fkey(nickname)')
+      .select('id, family_id, from_user_id::text, to_user_id::text, type, message, created_at, profiles!encouragements_from_user_id_fkey(nickname)')
       .eq('family_id', familyId)
       .order('created_at', { ascending: false })
       .limit(safeLimit),
@@ -40,7 +40,7 @@ export async function getMyEncouragementActivity(familyId: string, limit = 100) 
   const { data, count } = await runBackendRequest(
     getBackendDatabase()
       .from('encouragements')
-      .select('id, family_id, from_user_id, to_user_id, type, message, created_at, profiles!encouragements_from_user_id_fkey(nickname)', { count: 'exact' })
+      .select('id, family_id, from_user_id::text, to_user_id::text, type, message, created_at, profiles!encouragements_from_user_id_fkey(nickname)', { count: 'exact' })
       .eq('family_id', familyId)
       .eq('from_user_id', userId)
       .order('created_at', { ascending: false })
@@ -67,7 +67,7 @@ export async function sendReaction(input: { familyId: string; toUserId: string; 
         type: input.type,
         message: null,
       })
-      .select('id, family_id, from_user_id, to_user_id, type, message, created_at')
+      .select('id, family_id, from_user_id::text, to_user_id::text, type, message, created_at')
       .single(),
     '发送鼓励',
   )
