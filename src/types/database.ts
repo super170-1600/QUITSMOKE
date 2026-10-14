@@ -50,6 +50,8 @@ export interface SmokingProfile {
 }
 
 export interface Checkin {
+  craving_score?: number
+  mood?: import('@/utils/dailyPulse').DailyMood
   id: string
   user_id: UserId
   checkin_date: string

@@ -1,48 +1,45 @@
 <script setup lang="ts">
-import { onMounted,ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { showFailToast } from 'vant'
-import AppTabbar from '@/components/AppTabbar.vue'
+import {computed,onMounted,ref,watch} from 'vue'
+import {useRouter,useRoute} from 'vue-router'
+import {showConfirmDialog} from 'vant'
+import IdentitySpace from '@/features/identity/ui/IdentitySpace.vue'
+import IdentityField from '@/features/identity/ui/IdentityField.vue'
+import {useIdentityAccount} from '@/features/identity/composables/useIdentityAccount'
+import {useAuthStore} from '@/stores/auth'
+import {useFamilyStore} from '@/stores/family'
+import {useSmokingStore} from '@/stores/smoking'
+import {useEncouragementStore} from '@/stores/encouragement'
+import {useMessageStore} from '@/stores/message'
 import SupporterActivityCard from '@/components/SupporterActivityCard.vue'
-import { useAuthStore } from '@/stores/auth'
-import { useEncouragementStore } from '@/stores/encouragement'
-import { useFamilyStore } from '@/stores/family'
-import { useSmokingStore } from '@/stores/smoking'
-import { useMessageStore } from '@/stores/message'
-import { useDisplayMode,type DisplayMode } from '@/composables/useDisplayMode'
-
-const authStore=useAuthStore();const familyStore=useFamilyStore();const smokingStore=useSmokingStore();const encouragementStore=useEncouragementStore();const messageStore=useMessageStore();const router=useRouter()
-const loggingOut=ref(false);const loading=ref(true);const supporterActivityWarning=ref('');const supporterActivityUnavailable=ref(false);const devToolsEnabled=import.meta.env.VITE_ENABLE_DEV_TOOLS==='true';const {displayMode,setDisplayMode}=useDisplayMode()
-function changeDisplayMode(mode:DisplayMode){setDisplayMode(mode);if(mode==='desktop')void router.replace('/dashboard')}
-async function loadSupporterActivity(familyId:string){
-  const results=await Promise.allSettled([encouragementStore.loadMyActivity(familyId),messageStore.loadMyActivity(familyId)])
-  const failedCount=results.filter(result=>result.status==='rejected').length
-  results.forEach((result,index)=>{if(result.status==='rejected')console.error(index===0?'加载快捷鼓励记录失败':'加载聊天陪伴记录失败',result.reason)})
-  supporterActivityUnavailable.value=failedCount===results.length
-  supporterActivityWarning.value=failedCount===results.length?'陪伴记录暂时无法加载':failedCount>0?'部分陪伴记录暂未加载':''
-}
-onMounted(async()=>{try{await familyStore.initializeFamily();if(familyStore.isQuitter)await smokingStore.ensureSmokingProfileLoaded();if(familyStore.isSupporter&&familyStore.currentFamily)await loadSupporterActivity(familyStore.currentFamily.id)}catch(error:unknown){console.error('加载个人资料失败',error);showFailToast('加载个人资料失败')}finally{loading.value=false}})
-async function logout(){if(loggingOut.value)return;loggingOut.value=true;try{await authStore.logout();await router.replace('/login')}catch(error:unknown){console.error('退出登录失败',error);showFailToast('退出失败，请稍后再试')}finally{loggingOut.value=false}}
+import FamilyConnectionForm from '@/components/FamilyConnectionForm.vue'
+import {useDisplayMode,type DisplayMode} from '@/composables/useDisplayMode'
+import {hubJourney} from '@/visuals/hubJourney'
+const space=ref<InstanceType<typeof IdentitySpace>>(),route=useRoute()
+const account=useIdentityAccount(),{identity,loading,busy,error,success,feedback,nickname,settings,ready}=account
+const auth=useAuthStore(),family=useFamilyStore(),smoking=useSmokingStore(),encouragement=useEncouragementStore(),messages=useMessageStore(),router=useRouter()
+const {displayMode,setDisplayMode}=useDisplayMode()
+const leaving=ref(false),loggingOut=ref(false),relationError=ref(''),activityWarning=ref(''),activityUnavailable=ref(false)
+const returnTo=computed(()=>hubJourney.mode!=='idle'?hubJourney.origin:'/hub')
+const devEnabled=import.meta.env.VITE_ENABLE_DEV_TOOLS==='true'
+const joinedAt=computed(()=>{const value=family.currentMember?.joinedAt;return value&&!Number.isNaN(Date.parse(value))?new Intl.DateTimeFormat('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value)):''})
+function display(mode:DisplayMode){setDisplayMode(mode)}
+async function activity(){const user=auth.user?.id,id=family.currentFamily?.id;if(!id||!family.isSupporter)return;const result=await Promise.allSettled([encouragement.loadMyActivity(id),messages.loadMyActivity(id)]);if(auth.user?.id!==user||family.currentFamily?.id!==id)return;const failed=result.filter(row=>row.status==='rejected').length;activityUnavailable.value=failed===2;activityWarning.value=failed===2?'陪伴记录暂时无法加载':failed?'部分陪伴记录暂未加载':''}
+watch(()=>[ready.value,family.isSupporter,auth.user?.id],()=>{activityWarning.value='';activityUnavailable.value=false;if(ready.value&&family.isSupporter)void activity()})
+watch(()=>auth.user?.id,()=>{relationError.value='';leaving.value=loggingOut.value=false})
+async function leave(){if(leaving.value||busy.value||!family.currentFamily)return;const user=auth.user?.id,id=family.currentFamily.id,last=family.members.length<=1,creator=family.currentFamily.createdBy===user;const message=last?'退出会删除这个家庭及家庭动态，个人戒烟设置和打卡记录保留。':creator?'退出后管理权移交给最早加入的成员，个人戒烟记录保留。':'退出后无法访问这个家庭，个人戒烟记录保留。';try{await showConfirmDialog({title:'退出家庭？',message,confirmButtonText:'确认退出'})}catch{return}if(auth.user?.id!==user||family.currentFamily?.id!==id)return;leaving.value=true;relationError.value='';try{await family.leaveFamily();if(auth.user?.id!==user)return;messages.reset();encouragement.reset();await account.load()}catch(cause){if(auth.user?.id===user)relationError.value=cause instanceof Error?cause.message:'退出失败'}finally{if(auth.user?.id===user)leaving.value=false}}
+async function logout(){if(loggingOut.value||busy.value||leaving.value)return;loggingOut.value=true;try{await auth.logout();await router.replace('/login')}catch(cause){if(!auth.isAuthenticated)await router.replace('/login');else relationError.value=cause instanceof Error?cause.message:'退出失败'}finally{loggingOut.value=false}}
+onMounted(async()=>{await account.load();if(route.query.section==='family')void space.value?.open('family')})
 </script>
-
-<template>
-  <main class="page shell">
-    <header class="profile-heading"><div class="avatar">{{familyStore.currentMember?.nickname?.slice(0,1)??'我'}}</div><div><span>我的</span><h1>{{familyStore.currentMember?.nickname??authStore.profile?.nickname??'家庭成员'}}</h1><p>{{authStore.user?.email??authStore.user?.username??'已登录账号'}}</p></div></header>
-    <div v-if="loading" class="state"><van-loading size="20"/>正在加载…</div>
-    <template v-else>
-      <SupporterActivityCard v-if="familyStore.isSupporter" :items="encouragementStore.myItems" :total="encouragementStore.myTotal" :messages="messageStore.myItems" :message-total="messageStore.myTotal" :members="familyStore.members" :warning="supporterActivityWarning" :unavailable="supporterActivityUnavailable" @encourage="router.push('/family')" />
-      <section class="card family-info"><h2>家庭信息</h2><van-cell-group inset><van-cell title="家庭" :value="familyStore.currentFamily?.name??'未加入'"/><van-cell title="身份" :value="familyStore.isQuitter?'戒烟者':'支持者'"/></van-cell-group></section>
-      <section class="card display-settings"><div><h2>显示模式</h2><span>根据屏幕自动切换</span></div><div class="display-options"><button v-for="mode in (['auto','mobile','desktop'] as DisplayMode[])" :key="mode" :class="{active:displayMode===mode}" @click="changeDisplayMode(mode)">{{mode==='auto'?'自动':mode==='mobile'?'手机':'桌面'}}</button></div></section>
-      <section v-if="familyStore.isQuitter" class="card settings"><h2>戒烟设置</h2><van-cell-group v-if="smokingStore.smokingProfile" inset><van-cell title="开始日期" :value="smokingStore.smokingProfile.quitStartDate"/><van-cell title="原每日吸烟量" :value="`${smokingStore.smokingProfile.baselineDailyCigarettes} 支`"/><van-cell title="每包支数" :value="`${smokingStore.smokingProfile.cigarettesPerPack} 支`"/><van-cell title="每包价格" :value="`¥${smokingStore.smokingProfile.pricePerPack.toFixed(2)}`"/></van-cell-group><van-button block plain round type="primary" @click="router.push({path:'/setup',query:{edit:'1'}})">编辑戒烟设置</van-button></section>
-      <section v-if="devToolsEnabled" class="card dev-entry">
-        <van-cell title="账号诊断" label="检查 CloudBase 登录身份链路" icon="warning-o" is-link @click="router.push('/auth-debug')"/>
-        <van-cell v-if="familyStore.isQuitter" title="测试工具" label="生成历史打卡数据" icon="setting-o" is-link @click="router.push('/dev')"/>
-      </section>
-    </template>
-    <van-button class="logout" plain type="danger" round block :loading="loggingOut" @click="logout">退出登录</van-button><AppTabbar/>
-  </main>
-</template>
-
+<template><IdentitySpace ref="space" :identity="identity" :return-to="returnTo" :feedback="feedback">
+ <template #personal><p v-if="loading" role="status">正在读取…</p><form v-else-if="ready" @submit.prevent="account.saveNickname"><fieldset :disabled="busy"><IdentityField v-model="nickname" label="昵称"/><dl><div><dt>身份</dt><dd>{{identity.role==='quitter'?'戒烟者':identity.role==='supporter'?'支持者':'未设置'}}</dd></div><div v-if="joinedAt"><dt>加入家庭</dt><dd>{{joinedAt}}</dd></div></dl><button class="identity-save" type="submit">{{busy?'保存中…':'保存更改'}}</button></fieldset></form></template>
+ <template #smoking><p v-if="loading" role="status">正在读取…</p><form v-else-if="ready&&family.isQuitter" @submit.prevent="account.saveSmoking"><fieldset :disabled="busy"><label class="setting-field">开始日期<input v-model="settings.quitStartDate" type="date" required/></label><label class="setting-field">原每日吸烟量<input v-model.number="settings.baselineDailyCigarettes" type="number" min="0" max="200" required/></label><label class="setting-field">每包支数<input v-model.number="settings.cigarettesPerPack" type="number" min="1" max="200" required/></label><label class="setting-field">每包价格<input v-model.number="settings.pricePerPack" type="number" min="0" step="0.01" required/></label><button class="identity-save" type="submit">{{busy?'保存中…':'保存设置'}}</button></fieldset></form></template>
+ <template #family><p v-if="loading" role="status">正在读取…</p><FamilyConnectionForm v-else-if="!family.hasFamily" @completed="account.load"/><dl v-if="family.hasFamily"><div v-if="family.currentFamily"><dt>家庭</dt><dd>{{family.currentFamily.name}}</dd></div><div v-for="member in family.members" :key="member.id"><dt>{{member.nickname}}</dt><dd>{{member.role==='quitter'?'戒烟者':'支持者'}}</dd></div></dl><div class="identity-actions"><router-link v-if="family.hasFamily" to="/family">管理家庭</router-link><button v-if="family.hasFamily" :disabled="leaving||busy" @click="leave">{{leaving?'退出中…':'退出家庭'}}</button></div><SupporterActivityCard v-if="family.isSupporter" :items="encouragement.myItems" :total="encouragement.myTotal" :messages="messages.myItems" :message-total="messages.myTotal" :members="family.members" :warning="activityWarning" :unavailable="activityUnavailable" @encourage="router.push('/family')"/></template>
+ <template #privacy><ul class="identity-rules"><li>现有家庭成员可读取家庭内的打卡、戒烟设置、鼓励与动态。</li><li>个人资料、打卡和戒烟设置仅本人可修改。</li><li>共同计划的新共享规则尚未启用。</li></ul></template>
+ <template #display><div class="display-mode" role="group" aria-label="显示模式"><button v-for="mode in (['auto','mobile','desktop'] as DisplayMode[])" :key="mode" :aria-pressed="displayMode===mode" @click="display(mode)">{{mode==='auto'?'自动':mode==='mobile'?'手机':'桌面'}}</button></div><dl><div><dt>动画</dt><dd>跟随系统减弱动画设置</dd></div></dl></template>
+ <template #security><dl><div><dt>账户</dt><dd>{{auth.user?.username??auth.user?.email??'已登录'}}</dd></div></dl><div v-if="devEnabled" class="identity-actions"><router-link to="/auth-debug">账号诊断</router-link><router-link v-if="family.isQuitter" to="/dev">测试工具</router-link></div></template>
+ <template #footer><div class="identity-status"><p v-if="error" role="alert">{{error}}</p><p v-if="relationError" role="alert">{{relationError}}</p><p v-if="success" role="status">{{success}}</p><button v-if="!ready&&!loading&&auth.isAuthenticated" @click="account.load">重新读取</button></div><button class="logout" :disabled="loggingOut||busy||leaving" @click="logout">{{loggingOut?'退出中…':'退出登录'}}</button></template>
+</IdentitySpace></template>
 <style scoped>
-.shell{max-width:520px;margin:auto}.profile-heading{display:flex;align-items:center;gap:14px;margin:3px 2px 22px}.avatar{display:grid;width:58px;height:58px;place-items:center;border-radius:20px;background:linear-gradient(145deg,#d9eddf,#f4faf6);color:var(--green-700);font-size:22px;font-weight:800;box-shadow:var(--shadow)}.profile-heading span{color:var(--green-700);font-size:11px;font-weight:700}.profile-heading h1{margin:2px 0;font-size:25px}.profile-heading p{margin:0;color:var(--text-muted);font-size:12px}.family-info,.settings,.display-settings{margin-top:14px}.family-info h2,.settings h2,.display-settings h2{font-size:18px;margin:0 0 12px}.van-cell-group{margin:0 0 16px}.display-settings>div:first-child{display:flex;align-items:baseline;justify-content:space-between}.display-settings>div:first-child span{color:var(--text-muted);font-size:11px}.display-options{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:4px;border-radius:13px;background:#f0f3f1}.display-options button{border:0;border-radius:10px;padding:9px;background:transparent;color:#748078}.display-options button.active{background:#fff;color:var(--green-700);box-shadow:0 3px 10px rgba(25,55,43,.08);font-weight:700}.dev-entry{margin-top:14px;padding:7px}.dev-entry .van-cell{border-radius:14px}.logout{margin-top:18px}.state{display:flex;gap:8px;justify-content:center;padding:70px;color:var(--text-muted)}
+fieldset{border:0;padding:0;margin:0;min-width:0}fieldset:disabled{opacity:.6}.identity-save{display:block;margin:26px 0 8px auto;min-height:44px;padding:10px 24px;border:1px solid #a7a99a55;background:#fff7;border-radius:5px;color:#665f4b;font:inherit;cursor:pointer}.setting-field{display:flex;gap:18px;align-items:center;justify-content:space-between;min-height:65px;border-bottom:1px solid #9baab128;font-size:12px;color:#768288}.setting-field input{width:48%;min-width:0;padding:12px 0;border:0;background:#fff4;border-bottom:1px solid #a5b4ba44;color:#465257;font:inherit;font-size:15px;outline:none}.setting-field input:focus{border-color:#b49a6b;box-shadow:0 1px 0 #bda97d66}dl{margin:0}dl>div{display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:54px;border-bottom:1px solid #9baab128}dt{color:#859093;font-size:12px}dd{margin:0;color:#465257;font-size:12px;overflow-wrap:anywhere}.identity-actions{display:flex;gap:20px;align-items:center;flex-wrap:wrap;padding:22px 0}.identity-actions a,.identity-actions button{color:#7c735f;font:inherit;font-size:12px;background:none;border:0;text-decoration:none;cursor:pointer;min-height:44px;display:flex;align-items:center}.identity-rules{list-style:none;padding:0;margin:0;font-size:12px;color:#69767a;line-height:1.8}.identity-rules li{padding:14px 0;border-bottom:1px solid #9baab128}.display-mode{display:flex;gap:12px;padding:15px 0 24px}.display-mode button{min-height:44px;flex:1;border:1px solid #9baab133;border-radius:5px;background:#fff4;color:#738088;font:inherit;cursor:pointer}.display-mode button[aria-pressed=true]{border-color:#b3a27e;background:#e5d8b72e;color:#7e6d4e}.identity-status{font-size:12px;max-width:75%}.identity-status p{margin:8px 0;line-height:1.7}.identity-status p[role=alert]{color:#9d5745}.identity-status p[role=status]{color:#6f7d62}.identity-status button,.logout{border:0;background:none;color:#8c9498;font:inherit;cursor:pointer;min-height:44px;padding:8px}.logout{font-size:11px;white-space:nowrap}button:disabled{cursor:wait;opacity:.45}button:focus-visible,a:focus-visible{outline:2px solid #b69c6b;outline-offset:4px}
 </style>
+<style scoped>dt{max-width:70%;overflow-wrap:anywhere}.identity-status{overflow-wrap:anywhere}</style>

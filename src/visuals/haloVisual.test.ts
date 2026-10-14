@@ -1,0 +1,11 @@
+import {describe,it,expect} from 'vitest'
+import {haloVisual,haloSlot,haloAmount,haloMood} from './haloVisual'
+describe('Deterministic Daily Halo encoding',()=>{
+ const record={id:'r',checkinDate:'2026-10-13',cigarettes:0,cravingLevel:3,cravingScore:0,mood:'calm' as const,note:''}
+ it('never maps missing records to zero-smoking',()=>{expect(haloVisual(record.checkinDate,null)).toMatchObject({status:'missing',complete:false,texture:0});expect(haloVisual(record.checkinDate,null,true).status).toBe('today')})
+ it('reproduces shape and separates smoking counts from recovery ratios',()=>{expect(haloVisual(record.checkinDate,record)).toEqual(haloVisual(record.checkinDate,record));expect(haloVisual(record.checkinDate,{...record,cigarettes:2}).complete).toBe(false);expect(haloVisual(record.checkinDate,{...record,cravingScore:10}).texture).toBe(6)})
+ it('does not fabricate mood or new scores for legacy records',()=>{expect(haloVisual(record.checkinDate,{id:'r',checkinDate:record.checkinDate,cigarettes:3,cravingLevel:4,note:''}).label).toContain('旧量表烟瘾 4/5')})
+ it('distinguishes every smoking amount instead of treating all positive counts alike',()=>{const states=Array.from({length:201},(_,count)=>haloAmount(count));expect(new Set(states.map(state=>state.coverage)).size).toBe(201);expect(states[0]!.coverage).toBe(1);expect(states[1]!.coverage).toBeGreaterThan(states[10]!.coverage);expect(states[10]!.coverage).toBeGreaterThan(states[20]!.coverage);expect(haloAmount(null)).toMatchObject({known:false,coverage:0});expect(haloAmount(Number.NaN).known).toBe(false)})
+ it('gives anxiety, irritability and fatigue independent colors and silhouettes',()=>{const states=(['anxious','irritable','tired'] as const).map(haloMood);expect(new Set(states.map(state=>state.color)).size).toBe(3);expect(new Set(states.map(state=>state.shape)).size).toBe(3)})
+ it('has precisely four fixed rings with seven clockwise nodes each',()=>{const nodes=Array.from({length:28},(_,i)=>haloSlot(i));for(let ring=0;ring<4;ring++){expect(nodes.filter(n=>n.ring===ring)).toHaveLength(7);expect(nodes[ring*7]).toMatchObject({x:50,indexInRing:0});expect(nodes[ring*7+1]!.x).toBeGreaterThan(50)}expect(()=>haloSlot(28)).toThrow()})
+})

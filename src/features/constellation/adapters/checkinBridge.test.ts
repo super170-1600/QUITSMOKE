@@ -1,0 +1,6 @@
+import {it,expect,vi} from 'vitest'
+import {submitConstellationCheckin,type CheckinBridge} from './checkinBridge'
+const values={checkinDate:'2026-10-13',cigarettes:2,cravingLevel:2,note:''},row={...values,id:'saved'}
+it('提交返回真实结果后才允许记录反馈；非零也成功',async()=>{const save=vi.fn().mockResolvedValue(row);expect(await submitConstellationCheckin({mode:'real',role:()=> 'quitter',account:()=> 'own',save},values)).toEqual({record:row,source:'real',feedback:'record'});expect(save).toHaveBeenCalledWith(values)})
+it('失败、未登录、支持者不触发成功且不写入',async()=>{const save=vi.fn().mockRejectedValue(new Error('离线'));const bridge:CheckinBridge={mode:'real',role:()=> 'quitter',account:()=> 'own',save};await expect(submitConstellationCheckin(bridge,values)).rejects.toThrow('离线');save.mockClear();await expect(submitConstellationCheckin({...bridge,role:()=> 'supporter'},values)).rejects.toThrow('不能代打卡');await expect(submitConstellationCheckin({...bridge,account:()=>null},values)).rejects.toThrow('登录');expect(save).not.toHaveBeenCalled()})
+it('账号切换后不播放旧账号的成功',async()=>{let account='a';await expect(submitConstellationCheckin({mode:'real',role:()=> 'quitter',account:()=>account,save:async()=>{account='b';return row}},values)).rejects.toThrow('切换')})

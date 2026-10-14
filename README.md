@@ -9,6 +9,12 @@ cp .env.example .env
 npm run dev
 ```
 
+首页 `/` 现在是公开的 QUITSMOKE 3D 交互封面。悬停光环增强入口反馈，点击后香烟逐步解构、颗粒消散、气流汇入光环，再通过现有鉴权和角色流程进入 `/home`。已有账号可使用右上角登录入口。封面无需后端连接即可显示。
+
+实现采用 Three.js 程序化流线与粒子，无远程模型资源。当前是可调整的交互原型，尚未使用参考图级别的离线建模资产。支持窄屏、键盘、减少动画偏好以及 WebGL 不可用时的静态降级。
+
+本机带有 Codex 浏览器运行时及 Edge 时，可执行 `node scripts/verify-cover.mjs` 验证封面；其他环境可用 `PLAYWRIGHT_MODULE_DIR` 指定已安装的 Playwright 包目录。脚本默认访问 `127.0.0.1:5173`，须先启动开发服务。截图与结果保存在忽略提交的 `artifacts/cover/`。
+
 默认仍使用 Supabase。在 `.env` 中填写 Supabase Project Settings → API 提供的浏览器端配置：
 
 ```env
@@ -46,4 +52,4 @@ npm test
 npm run build
 ```
 
-生产产物位于 `dist/`。项目使用 Vue Router history 模式；`public/_redirects` 会随构建复制到产物，为 Cloudflare Pages 的 `/home`、`/family`、`/trend` 等直接访问提供 SPA fallback。部署后还需在 Supabase Authentication → URL Configuration 中加入生产 Site URL。
+生产产物位于 `dist/`。项目使用 Vue Router hash 模式，业务路径为 `/#/home`、`/#/family`、`/#/trend`；公开封面为 `/` 或 `/#/`。部署后还需在 Supabase Authentication → URL Configuration 中加入生产 Site URL。

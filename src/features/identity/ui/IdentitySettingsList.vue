@@ -1,0 +1,16 @@
+<script setup lang="ts">
+import {computed} from 'vue'
+import {identitySections,type IdentityRole,type IdentitySection} from '../types'
+import IdentityIcon from './IdentityIcon.vue'
+const props=defineProps<{role:IdentityRole}>()
+defineEmits<{select:[section:IdentitySection]}>()
+const entries=computed(()=>identitySections.filter(entry=>entry.id!=='smoking'||props.role==='quitter'))
+</script>
+<template><nav class="identity-settings" aria-label="身份设置入口"><button v-for="entry in entries" :key="entry.id" :data-section="entry.id" @click="$emit('select',entry.id)"><IdentityIcon :name="entry.icon"/><span class="unit-label"><small>{{entry.code}}</small><span>{{entry.label}}</span></span><i class="unit-light" aria-hidden="true"/></button></nav></template>
+<style scoped>
+.identity-settings{display:grid;grid-template-columns:1fr 1fr;column-gap:50px;width:100%}.identity-settings button{min-height:68px;display:flex;align-items:center;gap:18px;border:0;border-bottom:1px solid #87969d29;background:transparent;color:#4b565b;font:inherit;font-size:13px;cursor:pointer;text-align:left;padding:0 8px}.identity-settings svg{width:24px;height:24px;color:#8c9698;flex:none}.identity-settings button>span:nth-child(2){flex:1;letter-spacing:.04em}.entry-arrow{color:#9b9e96;font-size:17px;transition:transform .2s}.identity-settings button:hover .entry-arrow{transform:translate(2px,-2px)}.identity-settings button:hover{color:#8b6e3e;background:#fff9}.identity-settings button:focus-visible{outline:2px solid #a68c5b;outline-offset:3px}@media(max-width:600px){.identity-settings{grid-template-columns:1fr}.identity-settings button{min-height:60px;font-size:13px;padding:0 6px}}@media(prefers-reduced-motion:reduce){.entry-arrow{transition:none}}
+</style>
+
+<style scoped>
+.identity-settings{gap:12px 16px}.identity-settings button{position:relative;overflow:hidden;min-height:88px;padding:14px 20px;border:1px solid #94a4aa20;border-radius:7px;background:linear-gradient(120deg,#ffffff65,#eaf0f212 65%,#ffefd41a);box-shadow:inset 0 1px 0 #fff;transition:border-color .25s,background .25s}.unit-label{display:flex;flex-direction:column;gap:8px}.unit-label small{font-size:8px;letter-spacing:.19em;color:#959e9f;font-weight:400}.unit-label>span{font-size:12px}.identity-settings svg{width:25px;height:25px;transition:transform .3s,color .3s}.identity-settings button:hover svg{transform:translateY(-3px);color:#a78b56}.unit-light{position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,#d4b679,transparent);opacity:0;transform:translateX(-100%)}.identity-settings button:hover .unit-light,.identity-settings button:focus-visible .unit-light{animation:unit-sheen .65s ease both}@keyframes unit-sheen{25%{opacity:.9}100%{opacity:0;transform:translateX(100%)}}@media(max-width:600px){.identity-settings{gap:8px}.identity-settings button{min-height:74px;padding:10px 18px}}@media(prefers-reduced-motion:reduce){.unit-light{animation:none!important}.identity-settings svg,.identity-settings button{transition:none}.identity-settings button:hover svg{transform:none}}
+</style>

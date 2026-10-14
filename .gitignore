@@ -1,5 +1,6 @@
 node_modules/
 dist/
+artifacts/
 
 .env
 .env.local
@@ -7,3 +8,6 @@ dist/
 
 *.tsbuildinfo
 *.log
+*.blend[0-9]*
+__pycache__/
+*.pyc

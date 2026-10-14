@@ -1,0 +1,12 @@
+/* Stronger ink for controls and content, without altering optical geometry. */
+.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow,.family-join-hint) :is(p,label,dt,dd,span,small,time,button,a,input,textarea,summary,h1,h2,h3,output){color:#34414a!important}
+.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow) input::placeholder{color:#58636b!important}
+.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow) :is(.workflow-submit,.pulse-submit,.auth-submit){color:#fff!important}
+.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow) [role=alert]{color:#8b382e!important}
+.nico-app-layout :is(.daily-pulse,.live-orbital) svg text{fill:#374951!important}
+.nico-app-layout :is(.family-space,.constellation-study.dark-space) :is(p,label,dt,dd,small,time,button,a,summary,h1,h2,h3){color:#e5eaf0}
+.nico-app-layout .domain-detail :is(p,small,time,label,button,span){color:#34414a}
+.nico-app-layout .domain-detail svg text{fill:#34414a}
+.nico-app-layout .spatial-return :is(button,span){color:#34414a}
+.nico-app-layout:has(.hub-legend) .family-join-hint{right:auto;left:32px}
+@media(max-width:600px){.nico-app-layout:has(.hub-legend) .family-join-hint{left:18px}}

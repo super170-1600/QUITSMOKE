@@ -14,6 +14,10 @@ export interface SmokingProfileFormValues {
 }
 
 export interface CheckinModel {
+  cravingScore?: number
+  mood?: import('@/utils/dailyPulse').DailyMood
+  createdAt?: string
+  updatedAt?: string
   id: string
   checkinDate: string
   cigarettes: number
@@ -22,6 +26,8 @@ export interface CheckinModel {
 }
 
 export interface CheckinFormValues {
+  cravingScore?: number
+  mood?: import('@/utils/dailyPulse').DailyMood
   checkinDate: string
   cigarettes: number
   cravingLevel: number

@@ -5,12 +5,19 @@ import { appRoutes } from './routes'
 describe('hash router deployment contract', () => {
   it('keeps every deployed business path in the route table', () => {
     const paths = new Set(appRoutes.map((route) => route.path))
-    for (const path of ['/', '/login', '/home', '/family', '/family/setup', '/trend', '/profile']) {
+    for (const path of ['/', '/login', '/hub', '/home', '/checkin', '/setup', '/dashboard', '/family', '/family/setup', '/trend', '/profile']) {
       expect(paths.has(path), `missing route ${path}`).toBe(true)
     }
     if (import.meta.env.VITE_ENABLE_DEV_TOOLS === 'true') {
       expect(paths.has('/auth-debug')).toBe(true)
     }
+  })
+
+  it('protects the hub and all existing business routes', () => {
+    for (const path of ['/hub', '/home', '/checkin', '/trend', '/family', '/profile', '/dashboard', '/setup', '/family/setup']) {
+      expect(appRoutes.find(route => route.path === path)?.meta?.requiresAuth).toBe(true)
+    }
+    expect(appRoutes.find(route => route.path === '/')?.meta?.requiresAuth).not.toBe(true)
   })
 
   it('preserves a login redirect query without adding a hash to the route value', () => {

@@ -25,11 +25,11 @@ export const useEncouragementStore = defineStore('encouragement', () => {
   const authStore = useAuthStore()
   const cooldownTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
-  async function loadEncouragements(familyId: string) {
+  async function loadEncouragements(familyId: string, limit=30) {
     const revision = captureAccountScope()
     loading.value = true
     try {
-      const rows = await getEncouragements(familyId)
+      const rows = await getEncouragements(familyId,limit)
       if (!isAccountScopeCurrent(revision)) return items.value
       items.value = rows.map((row) => ({ id: row.id, familyId: row.family_id, fromUserId: row.from_user_id, toUserId: row.to_user_id, type: row.type, message: row.message ?? '', createdAt: row.created_at, fromNickname: row.from_nickname }))
       return items.value
@@ -108,6 +108,8 @@ export const useEncouragementStore = defineStore('encouragement', () => {
       startReactionCooldown(toUserId, type)
       rememberSentReaction(row, fromNickname)
       const refreshResults = await Promise.allSettled([loadEncouragements(familyId), loadMyActivity(familyId)])
+      // A lagging read must not erase the successful write receipt and its mark.
+      if (isAccountScopeCurrent(revision)) rememberSentReaction(row, fromNickname)
       refreshResults.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.error(index === 0 ? '鼓励已送达，但刷新家庭动态失败' : '鼓励已送达，但刷新陪伴记录失败', result.reason)

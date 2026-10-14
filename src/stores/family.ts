@@ -31,7 +31,7 @@ function toSmokingProfileModel(profile: SmokingProfile): SmokingProfileModel {
 }
 
 function toCheckinModel(checkin: Checkin): CheckinModel {
-  return { id: checkin.id, checkinDate: checkin.checkin_date, cigarettes: checkin.cigarettes, cravingLevel: checkin.craving_level, note: checkin.note ?? '' }
+  return { cravingScore:checkin.craving_score,mood:checkin.mood,createdAt:checkin.created_at,updatedAt:checkin.updated_at,id: checkin.id, checkinDate: checkin.checkin_date, cigarettes: checkin.cigarettes, cravingLevel: checkin.craving_level, note: checkin.note ?? '' }
 }
 
 export const useFamilyStore = defineStore('family', () => {

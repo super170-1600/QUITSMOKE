@@ -1,0 +1,11 @@
+import {describe,it,expect,vi,afterEach} from 'vitest'
+import {createEncouragementMock} from './encouragementMock'
+afterEach(()=>vi.useRealTimers())
+const input={senderId:'sample-a' as const,effect:'glow' as const,text:'一起慢慢来'}
+describe('isolated encouragement mock',()=>{
+ it('commits only after confirmation and does not persist a network claim',async()=>{vi.useFakeTimers();const service=createEncouragementMock(),result=service.send(input,new AbortController().signal);expect(service.list()).toEqual([]);await vi.advanceTimersByTimeAsync(180);expect(await result).toMatchObject({source:'mock',read:false,recipientId:'sample-core'});expect(service.list()).toHaveLength(1)})
+ it('failure does not create an event and retry preserves the supplied message',async()=>{vi.useFakeTimers();const service=createEncouragementMock();service.failNext();const failed=expect(service.send(input,new AbortController().signal)).rejects.toThrow('可重试');await vi.advanceTimersByTimeAsync(180);await failed;expect(service.list()).toEqual([]);const retry=service.send(input,new AbortController().signal);await vi.advanceTimersByTimeAsync(180);expect(await retry).toMatchObject({text:input.text});expect(service.list()).toHaveLength(1)})
+ it('aborting during submission prevents commit',async()=>{vi.useFakeTimers();const service=createEncouragementMock(),controller=new AbortController(),result=expect(service.send(input,controller.signal)).rejects.toMatchObject({name:'AbortError'});controller.abort();await vi.advanceTimersByTimeAsync(250);await result;expect(service.list()).toEqual([])})
+ it('rejects invalid effects and long Unicode text',async()=>{const service=createEncouragementMock();await expect(service.send({...input,effect:'bad' as never},new AbortController().signal)).rejects.toThrow('光效');await expect(service.send({...input,text:'😊'.repeat(201)},new AbortController().signal)).rejects.toThrow('200')})
+ it('returns copies, explicitly marks read, and clears all page-local records',async()=>{vi.useFakeTimers();const service=createEncouragementMock(),result=service.send(input,new AbortController().signal);await vi.advanceTimersByTimeAsync(180);const item=await result;service.list()[0]!.read=true;expect(service.list()[0]!.read).toBe(false);service.markRead(item.id);expect(service.list()[0]!.read).toBe(true);service.clear();expect(service.list()).toEqual([])})
+})

@@ -16,6 +16,13 @@ vi.mock('@/api/encouragement', () => ({
 }))
 
 describe('encouragement store send result', () => {
+  it('preserves a confirmed reaction when reads succeed but lag behind the write',async()=>{
+    vi.mocked(sendReaction).mockResolvedValue({id:'confirmed',family_id:'family-1',from_user_id:'supporter-1',to_user_id:'quitter-1',type:'heart',message:null,created_at:'2026-10-14T10:00:00Z'})
+    vi.mocked(getEncouragements).mockResolvedValue([])
+    vi.mocked(getMyEncouragementActivity).mockResolvedValue({items:[],total:0})
+    const store=useEncouragementStore();await store.sendReaction('family-1','quitter-1','heart','支持者')
+    expect(store.items.map(row=>row.id)).toEqual(['confirmed']);expect(store.myTotal).toBe(1)
+  })
   beforeEach(() => {
     vi.useFakeTimers()
     setActivePinia(createPinia())

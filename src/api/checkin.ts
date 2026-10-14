@@ -3,6 +3,7 @@ import { getAuthenticatedUserId, getBackendDatabase, runBackendRequest } from '@
 import { normalizeUserIdFields } from '@/services/backend/userId'
 import type { Checkin } from '@/types/database'
 import { getLocalDateString } from '@/utils/date'
+import { decodePulseNote } from '@/utils/dailyPulse'
 
 export interface CreateCheckinInput {
   checkin_date: string
@@ -18,7 +19,8 @@ export interface UpdateCheckinInput {
 }
 
 function normalizeCheckin(row: Checkin) {
-  return normalizeUserIdFields(row, ['user_id'])
+  const record=normalizeUserIdFields(row, ['user_id']),pulse=decodePulseNote(record.note)
+  return {...record,note:record.note===null?null:pulse.note,craving_score:pulse.cravingScore,mood:pulse.mood}
 }
 
 export async function getTodayCheckin() {

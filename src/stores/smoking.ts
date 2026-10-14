@@ -10,6 +10,7 @@ import {
   createCheckin,
   getCheckinsBetween,
   getTodayCheckin,
+  getCheckinByDate,
   updateCheckin,
 } from '@/api/checkin'
 import type { Checkin, SmokingProfile } from '@/types/database'
@@ -24,6 +25,7 @@ import type {
 import { buildDailyTrend, calculateSmokingStatistics } from '@/utils/statistics'
 import { getLocalDateString } from '@/utils/date'
 import { captureAccountScope, isAccountScopeCurrent } from '@/stores/accountScope'
+import {encodePulseNote,validatePulseDate} from '@/utils/dailyPulse'
 
 function toSmokingProfileModel(profile: SmokingProfile): SmokingProfileModel {
   return {
@@ -37,6 +39,7 @@ function toSmokingProfileModel(profile: SmokingProfile): SmokingProfileModel {
 
 function toCheckinModel(checkin: Checkin): CheckinModel {
   return {
+    cravingScore:checkin.craving_score,mood:checkin.mood,createdAt:checkin.created_at,updatedAt:checkin.updated_at,
     id: checkin.id,
     checkinDate: checkin.checkin_date,
     cigarettes: checkin.cigarettes,
@@ -169,7 +172,46 @@ export const useSmokingStore = defineStore('smoking', () => {
     return smokingProfile.value
   }
 
+  async function loadDailyCheckin(date:string) {
+    const userId=authStore.user?.id,revision=captureAccountScope()
+    if(!userId)throw new Error('登录状态已失效，请重新登录。')
+    const row=await getCheckinByDate(date)
+    if(!isAccountScopeCurrent(revision)||authStore.user?.id!==userId)throw new Error('登录账号已切换，请重新操作。')
+    if(row){const model=toCheckinModel(row);updateCachedCheckin(model);if(date===getLocalDateString())todayCheckin.value=model;return model}
+    checkins.value=checkins.value.filter(item=>item.checkinDate!==date)
+    if(date===getLocalDateString())todayCheckin.value=null
+    if(statistics.value)recalculateStatistics()
+    return null
+  }
+
+  async function saveDailyCheckin(values:CheckinFormValues){
+    const userId=authStore.user?.id,revision=captureAccountScope()
+    if(!userId)throw new Error('登录状态已失效，请重新登录。')
+    const profile=await ensureSmokingProfileLoaded()
+    if(!profile)throw new Error('请先完成戒烟设置')
+    validatePulseDate(values.checkinDate,profile.quitStartDate)
+    if(!Number.isInteger(values.cigarettes)||values.cigarettes<0||values.cigarettes>200)throw new Error('吸烟量须为 0–200 的整数')
+    const hasPulse=values.cravingScore!==undefined||values.mood!==undefined
+    const note=hasPulse?encodePulseNote(values.note,values.cravingScore!,values.mood!):values.note.trim()||null
+    if(note&&Array.from(note).length>300)throw new Error('备注过长，请缩短后保存')
+    const craving=values.cravingScore!==undefined?1+Math.round(values.cravingScore*4/10):values.cravingLevel
+    if(!Number.isInteger(craving)||craving<1||craving>5)throw new Error('烟瘾强度无效')
+    const input={cigarettes:values.cigarettes,craving_level:craving,note}
+    function assertAccount(){if(!isAccountScopeCurrent(revision)||authStore.user?.id!==userId)throw new Error('登录账号已切换，请重新操作。')}
+    assertAccount()
+    const existing=await getCheckinByDate(values.checkinDate);assertAccount()
+    let saved:Checkin
+    if(existing)saved=await updateCheckin(existing.id,input)
+    else try{saved=await createCheckin({...input,checkin_date:values.checkinDate})}catch(error){assertAccount();if(!isUniqueViolation(error))throw error;const row=await getCheckinByDate(values.checkinDate);assertAccount();if(!row)throw error;saved=await updateCheckin(row.id,input)}
+    assertAccount()
+    const model=toCheckinModel(saved);updateCachedCheckin(model)
+    if(model.checkinDate===getLocalDateString())todayCheckin.value=model
+    statisticsLoadedForUser.value=null
+    return model
+  }
+
   async function saveTodayCheckin(values: CheckinFormValues) {
+    if(values.checkinDate!==getLocalDateString()||values.cravingScore!==undefined)return saveDailyCheckin(values)
     const userId = authStore.user?.id
     if (!userId) throw new Error('登录状态已失效，请重新登录。')
     const revision = captureAccountScope()
@@ -248,6 +290,8 @@ export const useSmokingStore = defineStore('smoking', () => {
     ensureStatisticsLoaded,
     saveSmokingProfile,
     saveTodayCheckin,
+    loadDailyCheckin,
+    saveDailyCheckin,
     reset,
   }
 })

@@ -1,0 +1,8 @@
+import {afterEach,describe,it,expect,vi} from 'vitest'
+import {createEncouragementMock} from './encouragementMock'
+afterEach(()=>vi.useRealTimers())
+describe('local preview history persistence',()=>{
+ it('supplies examples only for an empty preview and never replaces existing history',()=>{let value:string|null=null;const storage={getItem:()=>value,setItem:(_key:string,data:string)=>{value=data},removeItem:()=>{value=null}};const first=createEncouragementMock(storage,'test');first.ensureExamples();expect(first.list()).toHaveLength(3);const restored=createEncouragementMock(storage,'test');restored.ensureExamples();expect(restored.list()).toHaveLength(3);expect(restored.list()[0]!.text).toContain('示例')})
+ it('restores sent records in a new page repository',async()=>{vi.useFakeTimers();let value:string|null=null;const storage={getItem:()=>value,setItem:(_key:string,data:string)=>{value=data},removeItem:()=>{value=null}};const one=createEncouragementMock(storage,'test');const send=one.send({senderId:'sample-a',effect:'glow',text:'本地测试'},new AbortController().signal);await vi.advanceTimersByTimeAsync(180);await send;const restored=createEncouragementMock(storage,'test');expect(restored.list()).toHaveLength(1);expect(restored.list()[0]!.effect).toBe('glow')})
+ it('does not report a saved record if browser persistence fails',async()=>{vi.useFakeTimers();const store=createEncouragementMock({getItem:()=>null,setItem:()=>{throw new Error('quota')},removeItem:()=>{}});const send=expect(store.send({senderId:'sample-a',effect:'glow',text:''},new AbortController().signal)).rejects.toThrow('保存失败');await vi.advanceTimersByTimeAsync(180);await send;expect(store.list()).toHaveLength(0)})
+})

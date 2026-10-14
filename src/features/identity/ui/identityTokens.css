@@ -1,0 +1,2 @@
+.nico-identity-material{--identity-silver:#9aaab3;--identity-gold:#c5a66d;--identity-edge:#ffffffb0;--identity-ink:#465257;--identity-glass:linear-gradient(118deg,#ffffff48,#d2e0e829 38%,#ffffff76 52%,#f5e4bc1c 80%,#f6f6f330);--identity-radius:16px}
+.nico-identity-material.is-dark{--identity-edge:#d6e5ef55;--identity-ink:#ece9e2;--identity-glass:linear-gradient(118deg,#cedae51c,#131e32b0 38%,#819bad1f 52%,#c5a66d14 80%,#182230c9)}

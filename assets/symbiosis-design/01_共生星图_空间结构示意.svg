@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900"><defs>
+<linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f7f7f5"/><stop offset=".6" stop-color="#e8eae9"/><stop offset="1" stop-color="#f5eee4"/></linearGradient>
+<radialGradient id="core" cx="35%" cy="25%" r="78%"><stop stop-color="#fff" stop-opacity=".98"/><stop offset=".38" stop-color="#e8f2f4" stop-opacity=".86"/><stop offset=".7" stop-color="#9baab0" stop-opacity=".48"/><stop offset="1" stop-color="#53636c" stop-opacity=".24"/></radialGradient>
+<radialGradient id="gold"><stop stop-color="#fffce8"/><stop offset=".32" stop-color="#e9cf8d"/><stop offset="1" stop-color="#c5a76b" stop-opacity=".22"/></radialGradient>
+<linearGradient id="line" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#778f99" stop-opacity=".14"/><stop offset=".34" stop-color="#f8ffff"/><stop offset=".62" stop-color="#90aab5" stop-opacity=".8"/><stop offset="1" stop-color="#f2dbb9" stop-opacity=".25"/></linearGradient>
+<filter id="shadow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="16"/></filter><filter id="glow"><feGaussianBlur stdDeviation="7"/></filter>
+<style>text{font-family:'Noto Sans CJK SC','Microsoft YaHei',sans-serif;fill:#283138} .eyebrow{font-size:16px;letter-spacing:4px;fill:#66757b} .title{font-size:28px;font-weight:600;letter-spacing:2px} .minor{font-size:16px;fill:#526068} .tiny{font-size:13px;fill:#67737b} .chip{fill:#fff;fill-opacity:.65;stroke:#ccd2d2;stroke-width:1.3} .axis{stroke:#bac7cb;stroke-width:1.2;stroke-dasharray:4 8}</style></defs><rect width="1440" height="900" fill="url(#bg)"/><text x="90" y="94" class="eyebrow">NICØ / SYMBIOTIC CONSTELLATION</text><text x="90" y="146" class="title">一核双轨 · 空间布局示意</text><text x="91" y="181" class="minor">主视觉优先，所有说明标签仅用于设计交接；实际网站默认极少文字</text>
+<ellipse cx="790" cy="740" rx="310" ry="40" fill="#77858a" opacity=".2" filter="url(#shadow)"/>
+<g fill="none" stroke="url(#line)"><ellipse cx="790" cy="458" rx="365" ry="160" stroke-width="5" transform="rotate(-24 790 458)"/><ellipse cx="790" cy="458" rx="305" ry="200" stroke-width="5" transform="rotate(47 790 458)"/></g>
+<path d="M 426 634 C 555 777 990 745 1130 572" fill="none" stroke="#d3b780" stroke-width="2.8" stroke-dasharray="12 9"/>
+<path d="M 487 655 C 640 735 974 695 1090 606" fill="none" stroke="#fff9e5" stroke-width="6" opacity=".55"/>
+<circle cx="790" cy="458" r="134" fill="url(#core)" stroke="#f5fcff" stroke-width="5"/>
+<circle cx="790" cy="458" r="115" fill="none" stroke="#fff" stroke-width="2.5" opacity=".8"/>
+<path d="M700 463 C735 330 815 360 868 440 S 806 564 734 510 S 758 378 834 390" fill="none" stroke="url(#line)" stroke-width="18" opacity=".6"/>
+<path d="M700 463 C735 330 815 360 868 440 S 806 564 734 510 S 758 378 834 390" fill="none" stroke="#fff" stroke-width="3" opacity=".75"/>
+<circle cx="518" cy="365" r="30" fill="url(#gold)" stroke="#f8e8c2" stroke-width="3"/><circle cx="1065" cy="330" r="29" fill="url(#core)" stroke="#e7fafb" stroke-width="3"/>
+<g fill="#d4b980" opacity=".85"><circle cx="583" cy="391" r="4"/><circle cx="616" cy="411" r="2"/><circle cx="654" cy="427" r="3"/><circle cx="971" cy="369" r="2.5"/><circle cx="945" cy="384" r="3"/></g>
+<g><rect x="93" y="258" width="292" height="93" rx="17" class="chip"/><text x="116" y="291" class="minor">A · 支持者轨道</text><text x="116" y="319" class="tiny">开放银白流线 / 暖金光核</text><path d="M385 301 L 488 361" fill="none" stroke="#98a9a8" stroke-width="1.4"/></g>
+<g><rect x="1129" y="230" width="233" height="91" rx="17" class="chip"/><text x="1150" y="262" class="minor">B · 支持者轨道</text><text x="1150" y="287" class="tiny">错层光核 / 空间穿插</text><path d="M1129 280 L1091 317" fill="none" stroke="#98a9a8" stroke-width="1.4"/></g>
+<g><rect x="94" y="495" width="265" height="97" rx="17" class="chip"/><text x="115" y="530" class="minor">中央生命核心</text><text x="115" y="560" class="tiny">点击 → 真实打卡</text><path d="M359 542 L651 470" fill="none" stroke="#a5b8b7" stroke-width="1.4"/></g>
+<g><rect x="1100" y="632" width="260" height="91" rx="17" class="chip"/><text x="1121" y="666" class="minor">当前计划弧线</text><text x="1121" y="695" class="tiny">默认仅聚焦一个计划</text><path d="M1100 676 L1056 657" fill="none" stroke="#c4ac83" stroke-width="1.4"/></g>
+<g><rect x="520" y="775" width="540" height="58" rx="18" fill="#fff" fill-opacity=".52" stroke="#dce1e0"/><text x="790" y="811" font-size="17" text-anchor="middle" fill="#657477">交互目标：中央打卡 · 光核鼓励 · 弧线计划 · 纪念回访</text></g>
+</svg>

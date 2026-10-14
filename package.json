@@ -15,12 +15,14 @@
     "@vant/use": "^1.6.0",
     "echarts": "^6.1.0",
     "pinia": "^3.0.3",
+    "three": "^0.186.1",
     "vant": "^4.9.21",
     "vue": "^3.5.22",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-vue": "^6.0.1",
     "typescript": "^5.9.3",
     "vite": "^7.1.7",
