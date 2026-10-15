@@ -1,12 +1,165 @@
-/* Stronger ink for controls and content, without altering optical geometry. */
-.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow,.family-join-hint) :is(p,label,dt,dd,span,small,time,button,a,input,textarea,summary,h1,h2,h3,output){color:#34414a!important}
-.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow) input::placeholder{color:#58636b!important}
-.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow) :is(.workflow-submit,.pulse-submit,.auth-submit){color:#fff!important}
-.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow) [role=alert]{color:#8b382e!important}
-.nico-app-layout :is(.daily-pulse,.live-orbital) svg text{fill:#374951!important}
-.nico-app-layout :is(.family-space,.constellation-study.dark-space) :is(p,label,dt,dd,small,time,button,a,summary,h1,h2,h3){color:#e5eaf0}
-.nico-app-layout .domain-detail :is(p,small,time,label,button,span){color:#34414a}
-.nico-app-layout .domain-detail svg text{fill:#34414a}
-.nico-app-layout .spatial-return :is(button,span){color:#34414a}
+/* A shared ink hierarchy; optical scenes keep their own materials and backgrounds. */
+:root{--nico-font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;--nico-ink:#25323a;--nico-secondary:#53616a;--nico-muted:#66747d;--nico-line:#81939e33;--nico-gold:#95713c}
+.nico-app-layout{font-family:var(--nico-font)}
+.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page,.nico-workflow){color:var(--nico-ink);font-family:var(--nico-font);font-size:14px;line-height:1.6;font-kerning:normal}
+.nico-app-layout :is(input,textarea,button,select){font-family:inherit}
+.nico-app-layout :is(input,textarea)::placeholder{color:var(--nico-muted)}
+.nico-app-layout :is(.daily-pulse,.identity-space,.live-orbital,.achievement-page) :is(strong,b,output,time){font-variant-numeric:tabular-nums lining-nums}
+.nico-app-layout :is(.workflow-error,.pulse-error,.identity-status [role=alert]){color:#973f32}
+.nico-app-layout :is(.workflow-submit,.pulse-submit,.auth-submit),.nico-app-layout .pulse-submit span{color:#fff}
+.nico-app-layout .spatial-return :is(button,span){color:var(--nico-secondary);font-size:13px;letter-spacing:.025em}
+.nico-app-layout .spatial-return>span{font-weight:550;color:var(--nico-ink)}
+
+/* Content-sized panels eliminate the empty lower half of reading and settings pages. */
+.nico-app-layout .floating-module:has(.daily-pulse),.nico-app-layout .floating-module:has(.identity-space),.nico-app-layout .floating-module:has(.achievement-page){bottom:auto}
+.nico-app-layout .floating-module:has(.identity-space){left:max(4vw,calc((100vw - 1040px)/2));right:max(4vw,calc((100vw - 1040px)/2))}
+.nico-app-layout .floating-module:has(.achievement-page){left:max(4vw,calc((100vw - 1140px)/2));right:max(4vw,calc((100vw - 1140px)/2))}
+
+.nico-app-layout .pulse-heading h1{font-size:24px;font-weight:550;letter-spacing:.025em;line-height:1.3}
+.nico-app-layout .pulse-heading>button{font-size:13px;letter-spacing:.02em;border-radius:8px}
+.nico-app-layout .pulse-dates{margin:16px 0 20px;padding-bottom:10px}
+.nico-app-layout .pulse-dates button span{font-size:12px;color:var(--nico-secondary)}
+.nico-app-layout .pulse-dates button b{font-size:17px;font-weight:500;color:var(--nico-ink)}
+.nico-app-layout .pulse-dates button[aria-pressed=true]{background:#c9b79312;border-bottom-width:2px}
+.nico-app-layout .pulse-hero{gap:clamp(24px,3vw,44px)}
+.nico-app-layout .pulse-art{height:clamp(350px,43svh,470px);border:1.5px solid #7d96a454;box-shadow:inset 0 1px 0 #ffffffb0}
+.nico-app-layout .pulse-edit-tabs{grid-template-rows:auto auto;row-gap:8px}
+.nico-app-layout .pulse-edit-tabs button{display:grid;grid-template-rows:subgrid;grid-row:span 2;align-items:baseline;padding:15px 10px;border-bottom:2px solid transparent}
+.nico-app-layout .pulse-edit-tabs button>span{font-size:13px;font-weight:500;line-height:20px;color:var(--nico-secondary)}
+.nico-app-layout .pulse-edit-tabs button>b{margin-top:0;font-size:27px;font-weight:450;line-height:1.25;letter-spacing:-.025em;color:var(--nico-ink)}
+.nico-app-layout .pulse-edit-tabs button>b.mood-value{font-size:18px}
+.nico-app-layout .pulse-edit-tabs button small{font-size:12px;color:var(--nico-secondary);font-weight:400}
+.nico-app-layout .pulse-edit-tabs button[aria-pressed=true]>span{color:var(--nico-gold)}
+.nico-app-layout .pulse-focused-editor label{font-size:13px;font-weight:550;color:var(--nico-secondary)}
+.nico-app-layout .pulse-stepper input{font-size:68px;font-weight:400;letter-spacing:-.055em;color:var(--nico-ink)}
+.nico-app-layout .pulse-score-value{font-size:60px;font-weight:400;letter-spacing:-.045em}
+.nico-app-layout .pulse-score-value small{font-size:14px;color:var(--nico-secondary);letter-spacing:0}
+.nico-app-layout :is(.pulse-range-labels,.pulse-note-editor,.pulse-legacy){font-size:12px;color:var(--nico-secondary)}
+.nico-app-layout .pulse-zero{font-size:12px;color:var(--nico-secondary)}
+.nico-app-layout .pulse-moods button{font-size:14px}
+.nico-app-layout .pulse-submit{min-height:48px;font-size:14px;font-weight:550}
+.nico-app-layout .pulse-art-group{min-width:0}
+.nico-app-layout .daily-pulse .pulse-archive-button{display:flex;align-items:center;gap:16px;width:100%;min-height:76px;margin-top:12px;padding:10px 20px;border:1.5px solid #829aa66b;border-radius:12px;background:linear-gradient(115deg,#fffdf3e6,#edf4f5c9);box-shadow:inset 0 1px 0 #fff,0 4px 14px #3c566309;text-align:left;font-size:16px;font-weight:550;letter-spacing:.04em;color:#304a58;transition:border-color .2s,background .2s}
+.nico-app-layout .pulse-archive-button .archive-emblem{width:46px;height:46px;flex:none;stroke:#6c899a;stroke-width:1.3;filter:drop-shadow(0 2px 2px #67889622)}
+.nico-app-layout .pulse-archive-button .archive-emblem path{fill:#e9d8b5;stroke:#aa8c52}
+.nico-app-layout .pulse-archive-button .archive-emblem ellipse{stroke:#b49a69;stroke-width:1.1}
+.nico-app-layout .pulse-archive-button .archive-pin{fill:#fff9e8;stroke:#b49a69}
+.nico-app-layout .pulse-archive-button .archive-arrow{margin-left:auto;font-size:24px;font-weight:400;color:#6c8390}
+.nico-app-layout .pulse-archive-button>span:not(.archive-arrow){font:inherit;color:inherit;margin:0;line-height:1.4}
+.nico-app-layout .daily-pulse .pulse-archive-button:hover:not(:disabled){border-color:#a48a5c;background:linear-gradient(115deg,#fffaf0,#e8f0f3)}
+.nico-app-layout :is(.pulse-error,.pulse-success,.pulse-loading){font-size:13px}
+
+.nico-app-layout .identity-space .identity-content{max-width:720px;margin-top:20px;padding:0 40px 20px}
+.nico-app-layout .identity-space .chip-position{margin-bottom:8px}
+.nico-app-layout .identity-space .identity-settings{gap:10px 18px}
+.nico-app-layout .identity-space .identity-settings button{min-height:80px;background:linear-gradient(115deg,#ffffff78,#ffffff08);border-color:#8d9ca52c;border-radius:8px}
+.nico-app-layout .identity-space .identity-settings svg{color:#60727d}
+.nico-app-layout .identity-space .unit-label{gap:4px}
+.nico-app-layout .identity-space .unit-label small{font-size:10px;letter-spacing:.14em;color:var(--nico-muted)}
+.nico-app-layout .identity-space .unit-label>span{font-size:15px;font-weight:500;letter-spacing:.025em;color:var(--nico-ink)}
+.nico-app-layout .identity-space .chip-name{font-size:32px;letter-spacing:.03em;font-weight:500;color:var(--nico-ink)}
+.nico-app-layout .identity-space .account-mark{font-size:12px;letter-spacing:.03em;color:var(--nico-secondary)}
+.nico-app-layout .identity-space .chip-bottom{font-size:12px;letter-spacing:.05em;color:var(--nico-secondary)}
+.nico-app-layout .identity-space .identity-footer{min-height:52px;margin-top:12px}
+.nico-app-layout .identity-space .logout{font-size:13px;color:var(--nico-secondary)}
+.nico-app-layout .identity-space .identity-panel{max-width:580px;margin-inline:auto}
+.nico-app-layout .identity-space .identity-panel>header>span{font-size:16px;font-weight:550;letter-spacing:.03em}
+.nico-app-layout .identity-space :is(.setting-field,dt,.identity-field>span){font-size:13px;color:var(--nico-secondary)}
+.nico-app-layout .identity-space :is(dd,.identity-actions a,.identity-actions button,.identity-rules,.identity-status){font-size:14px;line-height:1.8}
+.nico-app-layout .identity-space dd{color:var(--nico-ink)}
+.nico-app-layout .identity-space .identity-save{font-size:14px;font-weight:500;min-width:140px}
+.nico-app-layout .identity-space .identity-field input{font-size:24px;font-weight:450;letter-spacing:.025em}
+.nico-app-layout .identity-space .setting-field input{font-size:16px;color:var(--nico-ink)}
+
+.nico-app-layout .live-orbital time{font-size:12px;color:var(--nico-secondary)}
+.nico-app-layout .live-orbital header>div{font-size:19px}
+.nico-app-layout .domain-detail{background:#fffdfa;color:var(--nico-ink);padding:28px 36px}
+.nico-app-layout .domain-detail .detail-top nav button{font-size:14px;color:var(--nico-secondary)}
+.nico-app-layout .domain-detail .detail-top nav button[aria-pressed=true]{font-weight:550;color:var(--nico-ink)}
+.nico-app-layout .domain-detail .detail-heading>div>span{font-size:14px;color:var(--nico-secondary);font-weight:500}
+.nico-app-layout .domain-detail .detail-heading h2{font-size:62px;font-weight:400;color:var(--nico-ink);letter-spacing:-.045em;line-height:1.15}
+.nico-app-layout .domain-detail .detail-heading h2 small{font-size:15px;color:var(--nico-secondary);letter-spacing:0}
+.nico-app-layout .domain-detail :is(.detail-heading p,.chart-caption,footer){font-size:12px;color:var(--nico-secondary);line-height:1.65}
+.nico-app-layout .domain-detail .detail-ranges{gap:4px}
+.nico-app-layout .domain-detail .detail-ranges button{font-size:12px;border-radius:6px;min-width:46px}
+.nico-app-layout .domain-detail .detail-ranges button[aria-pressed=true]{background:#e8eeed;color:var(--nico-ink);font-weight:550}
+.nico-app-layout .domain-detail .detail-chart svg text{fill:#53636d;font-size:13px}
+.nico-app-layout .domain-detail .money-day time{font-size:12px;color:#71615a}
+.nico-app-layout .domain-detail .day-inspect{font-size:13px;padding:12px 0;min-height:54px;border-bottom:1px solid var(--nico-line)}
+.nico-app-layout .domain-detail .day-inspect strong{font-size:24px;font-weight:500}
+.nico-app-layout .domain-detail .detail-dates{padding-top:14px;gap:8px}
+.nico-app-layout .domain-detail .detail-dates button{font-size:12px;flex-basis:62px;min-height:62px;background:#fff}
+.nico-app-layout .domain-detail .detail-dates button span{font-size:16px;font-weight:500}
+.nico-app-layout .domain-detail .detail-dates button[aria-pressed=true]{background:#e6eeed}
+.nico-app-layout .domain-detail .journey-summary{font-size:13px;gap:24px;flex-wrap:wrap}
+.nico-app-layout .domain-detail .journey-summary b{font-size:21px;font-weight:500}
+
+.nico-app-layout .family-space{font-family:var(--nico-font)}
+.nico-app-layout .family-space footer{gap:28px;font-size:13px;border-top:1px solid #c5d3df18}
+.nico-app-layout .family-space footer :is(button,a){color:#e0e6e9;letter-spacing:.03em}
+.nico-app-layout .family-space .enc-history b{font-size:14px;font-weight:500;color:#f0eee8}
+.nico-app-layout .family-space .enc-history time{font-size:12px;color:#b6c4cc}
+.nico-app-layout .family-space .enc-history li p{font-size:13px}
+.nico-app-layout .family-space :is(.history-caption,.family-reactions button){font-size:13px}
+.nico-app-layout .family-space .family-chat-sheet{color:var(--nico-ink)}
+.nico-app-layout .family-chat-sheet :is(p,label,dt,dd,small,time,button,a,summary,h1,h2,h3){color:inherit}
 .nico-app-layout:has(.hub-legend) .family-join-hint{right:auto;left:32px}
-@media(max-width:600px){.nico-app-layout:has(.hub-legend) .family-join-hint{left:18px}}
+/* Collection reads as an exhibit, with one featured object and a measured row of seals. */
+.nico-app-layout .achievement-page{min-height:0;padding:0 clamp(24px,4vw,52px) 30px}
+.nico-app-layout .achievement-page .collection-header{height:60px;font-size:12px}
+.nico-app-layout .achievement-page .collection-header>span{font-size:11px;color:var(--nico-secondary)}
+.nico-app-layout .achievement-page .achievement-hero{display:flex;align-items:center;justify-content:space-between;gap:32px;text-align:left;margin:6px auto 24px;padding:28px 48px;border-radius:16px;background:radial-gradient(ellipse at 80% 30%,#e3d4b430,transparent 50%),linear-gradient(115deg,#fffdf8,#eef2f1);border:1px solid #9dafb326;box-shadow:inset 0 1px 0 #fff}
+.nico-app-layout .achievement-page .achievement-copy>span{font-size:14px;color:var(--nico-secondary);font-weight:500}
+.nico-app-layout .achievement-page .achievement-hero strong{font-size:88px;font-weight:400;line-height:1.15;letter-spacing:-.065em;margin:12px 0;color:var(--nico-ink)}
+.nico-app-layout .achievement-page .achievement-hero strong small{font-size:18px;font-weight:400;color:var(--nico-secondary);letter-spacing:0;margin-left:12px}
+.nico-app-layout .achievement-page .achievement-hero p{font-size:13px;margin:10px 0 0;color:var(--nico-secondary)}
+.nico-app-layout .achievement-page .achievement-badges{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin:0 auto 24px;border-bottom:1px solid var(--nico-line);padding-bottom:22px}
+.nico-app-layout .achievement-page .achievement-badges article{min-width:0;background:transparent;border:0;border-radius:0;padding:12px 10px;box-shadow:none;position:relative}
+.nico-app-layout .achievement-page .achievement-badges article+article::before{content:'';position:absolute;top:24%;bottom:16%;left:0;width:1px;background:linear-gradient(transparent,var(--nico-line),transparent)}
+.nico-app-layout .achievement-page .achievement-badges h2{font-size:17px;font-weight:500;margin:12px 0 4px;color:var(--nico-ink);letter-spacing:.02em}
+.nico-app-layout .achievement-page .achievement-badges article>span{font-size:12px;color:var(--nico-muted)}
+.nico-app-layout .achievement-page .achievement-badges article.is-earned>span{color:var(--nico-gold)}
+.nico-app-layout .achievement-page .achievement-facts{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:620px;margin:auto}
+.nico-app-layout .achievement-page .achievement-facts article{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 0;border:0;border-radius:0;background:none}
+.nico-app-layout .achievement-page .achievement-facts span{font-size:13px;color:var(--nico-secondary)}
+.nico-app-layout .achievement-page .achievement-facts b{font-size:22px;font-weight:500;color:var(--nico-ink);margin:0}
+@media(max-width:700px){
+ .nico-app-layout .floating-module:has(.identity-space),.nico-app-layout .floating-module:has(.achievement-page){left:12px;right:12px}
+ .nico-app-layout .identity-space .identity-content{padding:0 20px 16px;margin-top:12px}
+ .nico-app-layout .identity-space .identity-settings{gap:8px}
+ .nico-app-layout .identity-space .identity-settings button{min-height:68px}
+ .nico-app-layout .identity-space .chip-name{font-size:26px}
+ .nico-app-layout .pulse-art{height:230px}
+ .nico-app-layout .daily-pulse .pulse-archive-button{min-height:64px;margin-top:10px;padding:8px 16px;font-size:15px;gap:12px}
+ .nico-app-layout .pulse-archive-button .archive-emblem{width:40px;height:40px}
+ .nico-app-layout .pulse-heading h1{font-size:20px}
+ .nico-app-layout .pulse-heading>button{font-size:12px}
+ .nico-app-layout .pulse-dates{margin:10px 0 14px}
+ .nico-app-layout .pulse-dates button span{font-size:11px}
+ .nico-app-layout .pulse-dates button b{font-size:15px}
+ .nico-app-layout .pulse-hero{gap:18px}
+ .nico-app-layout .pulse-edit-tabs button>b{font-size:23px}
+ .nico-app-layout .pulse-edit-tabs button>b.mood-value{font-size:16px}
+ .nico-app-layout .pulse-stepper input{font-size:54px}
+ .nico-app-layout .pulse-score-value{font-size:48px}
+ .nico-app-layout .domain-detail{padding:20px}
+ .nico-app-layout .domain-detail .detail-top nav button{font-size:13px;padding-inline:7px}
+ .nico-app-layout .domain-detail .detail-heading h2{font-size:48px}
+ .nico-app-layout .domain-detail .detail-chart svg text{font-size:23px}
+ .nico-app-layout .domain-detail .day-inspect{flex-wrap:wrap;gap:8px 16px}
+ .nico-app-layout .family-space footer{gap:16px;font-size:12px;flex-wrap:wrap}
+ .nico-app-layout:has(.hub-legend) .family-join-hint{left:18px}
+ .nico-app-layout .achievement-page{padding:0 18px 22px}
+ .nico-app-layout .achievement-page .collection-header{height:44px}
+ .nico-app-layout .achievement-page .achievement-hero{padding:20px;gap:8px;margin-bottom:16px}
+ .nico-app-layout .achievement-page .achievement-hero strong{font-size:64px}
+ .nico-app-layout .achievement-page .achievement-hero p{font-size:12px;max-width:150px}
+ .nico-app-layout .achievement-page .achievement-badges{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:16px}
+ .nico-app-layout .achievement-page .achievement-badges article:last-child{grid-column:auto}
+ .nico-app-layout .achievement-page .achievement-badges article:nth-child(4)::before{display:none}
+ .nico-app-layout .achievement-page .achievement-badges h2{font-size:15px}
+ .nico-app-layout .achievement-page .achievement-facts{grid-template-columns:1fr;gap:0}
+ .nico-app-layout .achievement-page .achievement-facts article{border-bottom:1px solid var(--nico-line);padding:12px 4px}
+}
+@media(max-width:380px){.nico-app-layout .achievement-page .achievement-hero{padding:16px}.nico-app-layout .achievement-page .achievement-hero .optical-seal{width:108px;height:136px}.nico-app-layout .achievement-page .achievement-badges{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.nico-app-layout.layout-mobile .floating-module:has(.identity-space),.nico-app-layout.layout-mobile .floating-module:has(.achievement-page){left:max(12px,calc((100vw - 456px)/2));right:auto}

@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'
 import type {ConsoleModule} from '../ui/consoleTypes'
+import {resizeSurface} from '@/visuals/resizeSurface'
 
 export interface SceneReport { calls: number; triangles: number; geometries: number; textures: number; renderMs: number; frames: number; pixelRatio: number }
 export interface PanelAnchor { x: number; y: number; width: number; height: number; transform: string; orbit: { x:number; z:number; baseY:number;seatingError:number } }
@@ -227,7 +228,7 @@ export function createOverviewScene(host: HTMLElement, onFrame: (anchors: PanelA
     camera.lookAt(0, mobile ? .4 : .4, 0); camera.updateProjectionMatrix(); camera.updateMatrixWorld()
     panels.forEach(panel => { panel.visible = true })
     scene.updateMatrixWorld(true)
-    renderer.setSize(width, height, false)
+    resizeSurface(renderer,width,height)
     const start = performance.now(); renderer.render(scene, camera); frames++
     const anchors = panels.map((panel,index) => {
       const project = (x:number,y:number) => {
@@ -237,13 +238,16 @@ export function createOverviewScene(host: HTMLElement, onFrame: (anchors: PanelA
       const facing=project(panelWidth/2,0).x>=project(-panelWidth/2,0).x?1:-1
       const topLeft = project(-panelWidth/2*facing,panelHeight/2), topRight = project(panelWidth/2*facing,panelHeight/2), bottomLeft = project(-panelWidth/2*facing,-panelHeight/2)
       const horizontal = topRight.clone().sub(topLeft).divideScalar(280), vertical = bottomLeft.clone().sub(topLeft).divideScalar(240)
-      let seatingError=0
+      let seatingError=panel.userData.seatingError as number|undefined
+      if(seatingError===undefined){seatingError=0
       const positions=panel.geometry.getAttribute('position'),socket=sockets[index]
       for(let i=0;i<=48;i++){
         const sample=(.5+panel.userData.direction*(i/48-.5)*panelWidth/(panelWidth+.10))*48,first=Math.floor(sample),blend=sample-first
         const floor=socket.object.localToWorld(socket.center[first].clone().lerp(socket.center[Math.min(48,first+1)],blend))
         const base=panel.localToWorld(new THREE.Vector3((positions.getX(i*4)+positions.getX(i*4+2))/2,(positions.getY(i*4)+positions.getY(i*4+2))/2,(positions.getZ(i*4)+positions.getZ(i*4+2))/2))
         seatingError=Math.max(seatingError,base.distanceTo(floor))
+      }
+      panel.userData.seatingError=seatingError
       }
       return { x: topLeft.x, y: topLeft.y, width:280, height:240, transform:`matrix(${horizontal.x},${horizontal.y},${vertical.x},${vertical.y},0,0)`, orbit:{x:panel.position.x,z:panel.position.z,baseY:panel.position.y-panelHeight/2,seatingError} }
     })

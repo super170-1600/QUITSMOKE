@@ -11,12 +11,14 @@ import OpticalHaloScene from '@/components/OpticalHaloScene.vue'
 import HaloArchive from '@/components/HaloArchive.vue'
 import {haloVisual} from '@/visuals/haloVisual'
 import type {PulseDataSource} from '@/visuals/pulseDemo'
+import {withReadDeadline} from '@/utils/readDeadline'
 const props=defineProps<{source?:PulseDataSource;draftScope?:string}>()
 const smoking=props.source??useSmokingStore(),auth=useAuthStore(),router=useRouter()
 const today=ref(getLocalDateString()),selectedDate=ref(today.value),loading=ref(true),submitting=ref(false),error=ref(''),savedFeedback=ref(false)
 const record=ref<CheckinModel|null>(null),calendar=ref(false),archive=ref(false),month=ref(today.value.slice(0,7))
 const form=reactive({cigarettes:null as number|null,score:null as number|null,mood:null as DailyMood|null,note:''})
 const snapshot=ref(''),ready=ref(false),dirty=computed(()=>ready.value&&JSON.stringify(form)!==snapshot.value)
+const historyLoading=ref(false),historyError=ref('')
 const reducedMotion=ref(false),lowMotion=ref(false),editor=ref<'amount'|'craving'|'mood'>('amount')
 const coreRecord=computed<CheckinModel|null>(()=>typeof form.cigarettes!=='number'||!Number.isFinite(form.cigarettes)?null:{id:'preview',checkinDate:selectedDate.value,cigarettes:form.cigarettes,cravingLevel:record.value?.cravingLevel??1,cravingScore:form.score??undefined,mood:form.mood??undefined,note:form.note})
 const coreColor=computed(()=>haloVisual(selectedDate.value,coreRecord.value).color)
@@ -56,10 +58,18 @@ watch(()=>pending.value||calendar.value||archive.value,async open=>{if(open){pre
 async function loadDate(date:string){
  const token=++request;loading.value=true;ready.value=false;error.value='';record.value=null
  Object.assign(form,{cigarettes:null,score:null,mood:null,note:''})
- try{const value=await smoking.loadDailyCheckin(date);if(token!==request)return;record.value=value;Object.assign(form,{cigarettes:value?.cigarettes??null,score:value?.cravingScore??null,mood:value?.mood??null,note:value?.note??''});snapshot.value=JSON.stringify(form);if(drafts.value[date])Object.assign(form,drafts.value[date]);ready.value=true}
+ try{const value=await withReadDeadline(smoking.loadDailyCheckin(date));if(token!==request)return;record.value=value;Object.assign(form,{cigarettes:value?.cigarettes??null,score:value?.cravingScore??null,mood:value?.mood??null,note:value?.note??''});snapshot.value=JSON.stringify(form);if(drafts.value[date])Object.assign(form,drafts.value[date]);ready.value=true}
  catch(cause){if(token===request)error.value=cause instanceof Error?cause.message:'暂时无法读取记录，请重试'}finally{if(token===request)loading.value=false}
 }
-async function retryLoad(){loading.value=true;error.value='';try{await smoking.ensureStatisticsLoaded();await loadDate(selectedDate.value)}catch(cause){error.value=cause instanceof Error?cause.message:'读取失败，请重试';loading.value=false}}
+async function retryLoad(){await loadDate(selectedDate.value)}
+let unmounted=false
+async function loadHistory(){
+ if(historyLoading.value)return
+ historyLoading.value=true;historyError.value=''
+ try{await withReadDeadline<unknown>(smoking.ensureStatisticsLoaded())}
+ catch(cause){if(!unmounted)historyError.value=cause instanceof Error?cause.message:'档案读取失败，请重试'}
+ finally{if(!unmounted)historyLoading.value=false}
+}
 async function chooseDate(date:string){if(unavailable(date))return;if(date===selectedDate.value){calendar.value=false;archive.value=false;return}if(!await mayLeave())return;selectedDate.value=date;month.value=date.slice(0,7);calendar.value=false;archive.value=false;await loadDate(date)}
 async function save(){
  if(submitting.value||!ready.value)return
@@ -69,14 +79,14 @@ async function save(){
  }catch(cause){error.value=cause instanceof Error?cause.message:'保存失败，请重试'}finally{submitting.value=false}
 }
 function beforeUnload(event:BeforeUnloadEvent){if(dirty.value){event.preventDefault();event.returnValue=''}}
-onMounted(async()=>{media=matchMedia('(prefers-reduced-motion: reduce)');motionChanged();media.addEventListener('change',motionChanged);const device=navigator as Navigator&{deviceMemory?:number};lowMotion.value=(device.hardwareConcurrency??8)<=4||(device.deviceMemory??8)<=4;clock=setInterval(()=>today.value=getLocalDateString(),30000);window.addEventListener('beforeunload',beforeUnload);window.addEventListener('keydown',overlayKey,true);removeGuard=router.beforeEach(async()=>mayLeave());try{const saved=sessionStorage.getItem(draftKey.value);if(saved)drafts.value=JSON.parse(saved);await smoking.ensureStatisticsLoaded();await loadDate(selectedDate.value)}catch(cause){loading.value=false;error.value=cause instanceof Error?cause.message:'暂时无法读取记录'}})
-onBeforeUnmount(()=>{++request;clearInterval(clock);clearTimeout(feedback);removeGuard?.();media?.removeEventListener('change',motionChanged);window.removeEventListener('keydown',overlayKey,true);window.removeEventListener('beforeunload',beforeUnload);resolvePending?.(false)})
+onMounted(async()=>{media=matchMedia('(prefers-reduced-motion: reduce)');motionChanged();media.addEventListener('change',motionChanged);const device=navigator as Navigator&{deviceMemory?:number};lowMotion.value=(device.hardwareConcurrency??8)<=4||(device.deviceMemory??8)<=4;clock=setInterval(()=>today.value=getLocalDateString(),30000);window.addEventListener('beforeunload',beforeUnload);window.addEventListener('keydown',overlayKey,true);removeGuard=router.beforeEach(async()=>mayLeave());try{const saved=sessionStorage.getItem(draftKey.value);if(saved){const parsed=JSON.parse(saved);if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))drafts.value=parsed}}catch{/* A corrupt local draft must not prevent reading the real record. */}void loadHistory();await loadDate(selectedDate.value)})
+onBeforeUnmount(()=>{unmounted=true;++request;clearInterval(clock);clearTimeout(feedback);removeGuard?.();media?.removeEventListener('change',motionChanged);window.removeEventListener('keydown',overlayKey,true);window.removeEventListener('beforeunload',beforeUnload);resolvePending?.(false)})
 </script>
 <template><main class="daily-pulse" :class="{'is-saved':savedFeedback}">
 <header class="pulse-heading"><div><h1>每日打卡</h1></div><button @click="month=today.slice(0,7);calendar=true" aria-label="打开完整月历">{{selectedDate}} ▦</button></header>
 <nav class="pulse-dates" aria-label="最近七个自然日"><button v-for="date in recent" :key="date" :data-date="date" :disabled="unavailable(date)||submitting" :aria-pressed="selectedDate===date" @click="chooseDate(date)"><span>{{date===today?'今天':['日','一','二','三','四','五','六'][parseLocalDate(date).getDay()]}}</span><b>{{date.slice(-2)}}</b><i :class="{recorded:stored(date)}"/><small class="pulse-sr-only">{{stored(date)?'已记录':date===today?'待记录':'未记录'}}</small></button></nav>
 <form v-if="ready" @submit.prevent="save" class="pulse-form pulse-composition"><fieldset :disabled="submitting">
-<section class="pulse-hero"><div class="pulse-art" aria-label="立体今日光环，非医学测量"><OpticalHaloScene mode="daily" :date="selectedDate" :record="coreRecord" :mood="form.mood??undefined" :score="form.score"/><div class="pulse-art-caption"><small v-if="dirty">未保存</small></div></div>
+<section class="pulse-hero"><div class="pulse-art-group"><div class="pulse-art" aria-label="立体今日光环，非医学测量"><OpticalHaloScene mode="daily" :date="selectedDate" :record="coreRecord" :mood="form.mood??undefined" :score="form.score"/><div class="pulse-art-caption"><small v-if="dirty">未保存</small></div></div><button class="pulse-archive-button" type="button" :disabled="historyLoading||!!historyError" aria-haspopup="dialog" :aria-expanded="archive" @click="archive=true"><svg class="archive-emblem" viewBox="0 0 56 56" fill="none" aria-hidden="true"><circle cx="28" cy="28" r="23"/><circle cx="28" cy="28" r="16.5"/><ellipse cx="28" cy="28" rx="22" ry="9" transform="rotate(-32 28 28)"/><path d="m28 22 4 6-4 6-4-6Z"/><circle class="archive-pin" cx="46" cy="14" r="2.5"/></svg><span>{{historyLoading?'档案读取中…':'光环档案'}}</span><span class="archive-arrow" aria-hidden="true">↗</span></button></div>
 <div class="pulse-edit"><nav class="pulse-edit-tabs" aria-label="选择要编辑的数据"><button type="button" :aria-pressed="editor==='amount'" @click="editor='amount'"><span>吸烟量</span><b>{{form.cigarettes??'—'}}<small> 支</small></b></button><button type="button" :aria-pressed="editor==='craving'" @click="editor='craving'"><span>烟瘾</span><b>{{form.score??'—'}}<small> /10</small></b></button><button type="button" :aria-pressed="editor==='mood'" @click="editor='mood'"><span>感受</span><b class="mood-value">{{form.mood?moodLabels[form.mood]:'待选择'}}</b></button></nav>
 <section class="pulse-focused-editor">
 <template v-if="editor==='amount'"><label for="pulse-cigarettes">吸烟量</label><div class="pulse-stepper"><button type="button" aria-label="减少一支" @click="form.cigarettes=Math.max(0,(form.cigarettes??0)-1)">−</button><input id="pulse-cigarettes" v-model.number="form.cigarettes" type="number" min="0" max="200" step="1" placeholder="—" aria-label="吸烟量，支"/><button type="button" aria-label="增加一支" @click="form.cigarettes=Math.min(200,(form.cigarettes??0)+1)">+</button></div><button type="button" class="pulse-zero" @click="form.cigarettes=0">0 支 · 未吸烟</button></template>
@@ -86,7 +96,8 @@ onBeforeUnmount(()=>{++request;clearInterval(clock);clearTimeout(feedback);remov
 </section>
 <details class="pulse-note-editor"><summary>备注 +</summary><textarea id="pulse-note" v-model="form.note" maxlength="160" rows="2" placeholder="备注" aria-label="备注"/></details>
 <p v-if="error" class="pulse-error" role="alert">{{error}}</p><p v-if="savedFeedback" class="pulse-success" role="status">已保存</p>
-<footer class="pulse-actions"><button class="pulse-submit" type="submit">{{submitting?'正在保存…':saveLabel}} <span>→</span></button><button class="pulse-archive-button" type="button" @click="archive=true">光环档案 ↗</button></footer>
+<footer class="pulse-actions"><button class="pulse-submit" type="submit">{{submitting?'正在保存…':saveLabel}} <span>→</span></button></footer>
+<p v-if="historyError" class="pulse-error" role="status">档案：{{historyError}} <button type="button" @click="loadHistory">重试</button></p>
 </div></section></fieldset></form>
 <div v-else class="pulse-loading" role="status">{{loading?'正在读取该日记录…':error}} <button v-if="!loading" @click="retryLoad">重新加载</button></div>
 <Teleport to="body"><div class="daily-pulse pulse-portals"><section v-if="calendar" class="pulse-overlay" role="dialog" aria-modal="true" aria-label="完整月历"><div class="pulse-month"><header><button @click="moveMonth(-1)" aria-label="上个月">←</button><h2>{{month}}</h2><button @click="moveMonth(1)" aria-label="下个月">→</button><button @click="calendar=false" aria-label="关闭月历">×</button></header><div class="pulse-weekdays"><span v-for="day in ['一','二','三','四','五','六','日']" :key="day">{{day}}</span></div><div class="pulse-month-grid"><button v-for="date in monthDates" :key="date" :data-date="date" :disabled="unavailable(date)||submitting" :class="{outside:!date.startsWith(month),today:date===today,recorded:stored(date)}" :aria-label="`${date}，${stored(date)?'已记录':'无记录'}`" :aria-pressed="date===selectedDate" @click="chooseDate(date)">{{Number(date.slice(-2))}}<i/></button></div><p>实心点为已记录；空槽不代表无烟。补签从 {{firstAllowed}} 开放。</p></div></section>

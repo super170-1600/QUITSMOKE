@@ -5,12 +5,14 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js'
 import type {CheckinModel} from '@/types/domain'
 import {haloVisual,haloAmount,haloMood} from '@/visuals/haloVisual'
 import DailyHalo from './DailyHalo.vue'
+import {resizeSurface} from '@/visuals/resizeSurface'
 const props=defineProps<{mode:'daily'|'archive';date:string;record?:CheckinModel|null;dates?:string[];records?:CheckinModel[];selectedDate?:string|null;mood?:CheckinModel['mood'];score?:number|null;pose?:{yaw:number;pitch:number}}>()
 const emit=defineEmits<{project:[nodes:{date:string;x:number;y:number;ring:number}[]]}>()
 const host=ref<HTMLDivElement>(),failed=ref(false)
 let archiveRoot:THREE.Group
 let renderer:THREE.WebGLRenderer,scene:THREE.Scene,camera:THREE.PerspectiveCamera,objects:THREE.Group,environment:THREE.Texture,resize:ResizeObserver
 const resources:(THREE.BufferGeometry|THREE.Material|THREE.Texture)[]=[]
+let buildCount=0
 function material<T extends THREE.Material>(value:T){resources.push(value);return value}
 function mesh(geometry:THREE.BufferGeometry,mat:THREE.Material){resources.push(geometry);const obj=new THREE.Mesh(geometry,mat);obj.castShadow=true;obj.receiveShadow=true;return obj}
 function sculpture(record:CheckinModel|null|undefined,date:string,scale=1){
@@ -21,7 +23,7 @@ function sculpture(record:CheckinModel|null|undefined,date:string,scale=1){
  if(props.selectedDate===date){group.add(mesh(new THREE.TorusGeometry(.7,.012,8,96),material(new THREE.MeshStandardMaterial({color:'#c58b32',metalness:.65,roughness:.2,emissive:'#b27929',emissiveIntensity:.2}))))}
  if(record){
   group.add(mesh(new THREE.TorusGeometry(.55,.075,16,112),glass))
-  const rim=mesh(new THREE.TorusGeometry(.615,.013,8,112),silver);rim.position.z=-.015;group.add(rim)
+  const rim=mesh(new THREE.TorusGeometry(.615,props.mode==='daily'?.019:.013,8,112),silver);rim.position.z=-.015;group.add(rim)
   if(state.complete)group.add(mesh(new THREE.TorusGeometry(.46,.039,12,112),belt))
   else for(let i=0;i<amount.fragments;i++){const arc=mesh(new THREE.TorusGeometry(.46,.039,12,24,Math.PI*2/amount.fragments*amount.coverage),belt);arc.rotation.z=i*Math.PI*2/amount.fragments;group.add(arc)}
   for(let i=0;i<state.texture;i++){const ring=mesh(new THREE.TorusGeometry(.25+i*.013,.006,6,64,Math.PI*1.3),silver);ring.rotation.z=i*.7;ring.position.z=.025;group.add(ring)}
@@ -30,8 +32,17 @@ function sculpture(record:CheckinModel|null|undefined,date:string,scale=1){
    for(let i=0;i<Math.ceil(amount.intensity*30);i++){const angle=i*2.399;const fragment=mesh(new THREE.IcosahedronGeometry(.009+amount.intensity*.018+(i%3)*.004,0),charcoal);const radius=.49+(i%4)*.022;fragment.position.set(Math.cos(angle)*radius,Math.sin(angle)*radius,.09+(i%3)*.014);fragment.rotation.set(i*.9,i*.4,i);group.add(fragment)}
   }
  }else{
-  const empty=material(new THREE.MeshStandardMaterial({color:'#a9bdc8',metalness:.4,roughness:.4,transparent:true,opacity:.22}))
-  group.add(mesh(new THREE.TorusGeometry(.55,.013,6,72,Math.PI*1.75),empty))
+  if(props.mode==='daily'){
+   // An open optical frame is visible before check-in, without implying a completed day.
+   const emptyGlass=material(new THREE.MeshPhysicalMaterial({color:'#a3becd',metalness:.08,roughness:.12,transmission:.78,thickness:.18,ior:1.46,clearcoat:1,envMapIntensity:1.15}))
+   const emptyEdge=material(new THREE.MeshStandardMaterial({color:'#466675',metalness:.65,roughness:.28,transparent:true,opacity:.82}))
+   const body=mesh(new THREE.TorusGeometry(.55,.045,12,112,Math.PI*1.75),emptyGlass)
+   const rim=mesh(new THREE.TorusGeometry(.591,.012,8,112,Math.PI*1.75),emptyEdge)
+   body.rotation.z=.28;rim.rotation.z=.28;rim.position.z=-.012;group.add(body,rim)
+  }else{
+   const empty=material(new THREE.MeshStandardMaterial({color:'#a9bdc8',metalness:.4,roughness:.4,transparent:true,opacity:.22}))
+   group.add(mesh(new THREE.TorusGeometry(.55,.013,6,72,Math.PI*1.75),empty))
+  }
  }
  // Mood can be previewed before an amount is entered, without inventing a zero-smoking record.
  if(record||props.mode==='daily'&&props.mood){
@@ -46,11 +57,11 @@ function sculpture(record:CheckinModel|null|undefined,date:string,scale=1){
 }
 function clear(){objects?.clear();for(const resource of resources.splice(0))resource.dispose()}
 function fallback(){emit('project',(props.dates??[]).map((date,index)=>{const ring=Math.floor(index/7),angle=index%7*Math.PI*2/7,radius=10+ring*5.7;return {date,x:50+Math.sin(angle)*radius,y:50-Math.cos(angle)*radius*.75,ring}}))}
-function build(){if(failed.value){fallback();return}if(!scene)return;clear();const archive=props.mode==='archive'
+function build(){if(failed.value){fallback();return}if(!scene)return;if(import.meta.env.DEV&&host.value)host.value.dataset.buildCount=String(++buildCount);clear();const archive=props.mode==='archive'
  const floor=mesh(new THREE.PlaneGeometry(200,200),material(new THREE.ShadowMaterial({color:'#536d7d',opacity:.13})));floor.rotation.x=-Math.PI/2;floor.position.y=archive?-.5:-1.15;objects.add(floor)
  if(!archive){const halo=sculpture(props.record,props.date,2.45);halo.rotation.set(-.18,-.23,-.18);halo.position.y=.42;objects.add(halo)
   // This optical mounting is decorative; only the foreground halo represents the record.
-  const mounting=material(new THREE.MeshPhysicalMaterial({color:'#9cc9e2',transmission:.9,roughness:.05,thickness:.16,ior:1.46,clearcoat:1}))
+  const mounting=material(new THREE.MeshPhysicalMaterial({color:'#94b3c7',transmission:.8,roughness:.12,thickness:.18,ior:1.46,clearcoat:1}))
   for(let i=0;i<3;i++){const back=mesh(new THREE.TorusGeometry(.88+i*.15,.022+i*.006,10,112,Math.PI*1.8),mounting);back.position.set(0,.42,-.16-i*.09);back.rotation.set(.18+i*.1,.22-i*.14,.35+i*.7);objects.add(back)}
   for(let i=0;i<5;i++){const angle=i*1.23;const bead=mesh(new THREE.SphereGeometry(.025+i*.008,16,12),mounting);bead.position.set(Math.cos(angle)*1.55,.42+Math.sin(angle)*1.4,-.1+i*.06);objects.add(bead)}
  }else{
@@ -63,7 +74,7 @@ function build(){if(failed.value){fallback();return}if(!scene)return;clear();con
  }
  render()
 }
-function render(){if(failed.value){fallback();return}if(!host.value||!renderer)return;const width=host.value.clientWidth,height=host.value.clientHeight;if(!width||!height)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.fov=props.mode==='archive'?Math.max(40,2*Math.atan(5.6/(10.2*camera.aspect))*180/Math.PI):34;camera.updateProjectionMatrix();if(props.mode==='archive'&&archiveRoot){archiveRoot.rotation.set(0,props.pose?.yaw??0,0);archiveRoot.updateMatrixWorld(true)}renderer.render(scene,camera)
+function render(){if(failed.value){fallback();return}if(!host.value||!renderer)return;const width=host.value.clientWidth,height=host.value.clientHeight;if(!width||!height)return;if(resizeSurface(renderer,width,height)){camera.aspect=width/height;camera.fov=props.mode==='archive'?Math.max(40,2*Math.atan(5.6/(10.2*camera.aspect))*180/Math.PI):34;camera.updateProjectionMatrix()}if(props.mode==='archive'&&archiveRoot){archiveRoot.rotation.set(0,props.pose?.yaw??0,0);archiveRoot.updateMatrixWorld(true)}renderer.render(scene,camera)
  if(props.mode==='archive'){emit('project',(props.dates??[]).map((date,index)=>{const ring=Math.floor(index/7),angle=index%7*Math.PI*2/7,radius=1.05+ring*.58;const point=new THREE.Vector3(Math.sin(angle)*radius,.15+ring*.12+.34,-Math.cos(angle)*radius);archiveRoot.localToWorld(point);point.project(camera);return {date,x:(point.x+1)*50,y:(1-point.y)*50,ring}}))}
 }
 onMounted(()=>{try{
@@ -73,9 +84,13 @@ onMounted(()=>{try{
  scene.add(new THREE.HemisphereLight('#e6f5ff','#c4b79e',.85));const key=new THREE.DirectionalLight('#fff1d5',2.2);key.position.set(-4,7,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-7;key.shadow.camera.right=7;key.shadow.camera.top=7;key.shadow.camera.bottom=-7;key.shadow.bias=-.001;key.shadow.normalBias=.03;key.shadow.radius=4;scene.add(key);const cool=new THREE.DirectionalLight('#b8dfff',2.2);cool.position.set(5,3,-4);scene.add(cool)
  objects=new THREE.Group();scene.add(objects);build();resize=new ResizeObserver(render);resize.observe(host.value!)
  }catch{failed.value=true;clear();renderer?.domElement.remove();fallback()}})
-watch(()=>[props.record,props.records,props.dates,props.selectedDate,props.mood,props.score],build,{deep:true})
+let buildFrame=0
+function scheduleBuild(){if(!buildFrame)buildFrame=requestAnimationFrame(()=>{buildFrame=0;build()})}
+// Notes and backend metadata do not change the optical sculpture.
+function visualRecord(row:CheckinModel|null|undefined){return row?[row.checkinDate,row.cigarettes,row.cravingLevel,row.cravingScore,row.mood]:null}
+watch(()=>JSON.stringify([props.date,props.mode==='daily'?visualRecord(props.record):props.records?.map(visualRecord),props.dates,props.selectedDate,props.mood,props.score]),scheduleBuild)
 watch(()=>props.pose,render,{deep:true})
-onBeforeUnmount(()=>{resize?.disconnect();clear();environment?.dispose();renderer?.dispose();renderer?.forceContextLoss()})
+onBeforeUnmount(()=>{cancelAnimationFrame(buildFrame);resize?.disconnect();clear();environment?.dispose();renderer?.dispose();renderer?.forceContextLoss()})
 </script>
 <template><div ref="host" class="optical-scene" aria-hidden="true"><div v-if="failed" class="optical-fallback"><DailyHalo v-if="mode==='daily'" :date="date" :record="record" :size="180" :mood="mood" :reduced-motion="true"/><DailyHalo v-for="(item,index) in mode==='archive'?(dates??[]):[]" :key="item" :date="item" :record="records?.find(row=>row.checkinDate===item)" :size="44" :reduced-motion="true" :style="{position:'absolute',left:`${50+Math.sin(index%7*Math.PI*2/7)*(10+Math.floor(index/7)*5.7)}%`,top:`${50-Math.cos(index%7*Math.PI*2/7)*(10+Math.floor(index/7)*5.7)*.75}%`,transform:'translate(-50%,-50%)'}"/></div></div></template>
 <style scoped>.optical-scene{position:absolute;inset:0;overflow:hidden}.optical-scene :deep(canvas){display:block;width:100%;height:100%}.optical-fallback{height:100%;display:grid;place-items:center;font-size:160px;color:#91b3c4}</style>

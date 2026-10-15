@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useFamilyStore } from '@/stores/family'
 import { useSmokingStore } from '@/stores/smoking'
 import type {SmokingStatistics} from '@/types/domain'
+import AchievementSeal from '@/components/AchievementSeal.vue'
 const props=defineProps<{previewStats?:SmokingStatistics}>()
 
 const family=useFamilyStore(),smoking=useSmokingStore()
@@ -12,13 +13,14 @@ const stats=computed(()=>props.previewStats??(family.isQuitter?smoking.statistic
 const name=computed(()=>family.isQuitter?family.currentMember?.nickname:summary.value?.member.nickname)
 const days=[1,3,7,14,30]
 const next=computed(()=>days.find(day=>day>(stats.value?.currentStreak??0)))
+const latest=computed(()=>[...days].reverse().find(day=>day<=(stats.value?.currentStreak??0)))
 async function load(){loading.value=true;failed.value=false;try{await family.initializeFamily();if(family.isQuitter)await smoking.ensureStatisticsLoaded();else{await family.loadQuitterSummaries();family.selectQuitter(family.selectedQuitterId)}}catch{failed.value=true}finally{loading.value=false}}
 onMounted(()=>{if(props.previewStats)loading.value=false;else void load()})
 </script>
 <template><main class="achievement-page page"><header class="collection-header"><router-link to="/hub">NICØ</router-link><span>NICØ / COLLECTION</span><router-link to="/profile">◇</router-link></header>
  <div v-if="loading" class="optical-state" role="status"><van-loading/>正在读取里程碑</div>
  <div v-else-if="!previewStats&&(failed||summary?.loadFailed)" class="optical-state" role="status"><p>暂时无法读取记录</p><button @click="load">重新加载</button></div>
- <template v-else-if="stats"><div v-if="!previewStats&&family.isSupporter&&family.quitterMembers.length>1" class="achievement-switch"><button v-for="member in family.quitterMembers" :key="member.userId" :aria-pressed="family.selectedQuitterId===member.userId" @click="family.selectQuitter(member.userId)">{{member.nickname}}</button></div><section class="achievement-hero"><span>当前连续无烟</span><strong>{{stats.currentStreak}}<small>天</small></strong><p>{{next?`下一个里程碑 · ${next} 天`:'已达成全部现有里程碑'}}</p></section><div class="achievement-badges"><article v-for="day in days" :key="day" :class="{'is-earned':stats.currentStreak>=day}"><i class="glass-seal" aria-hidden="true">✧</i><h2>{{day}} 天</h2><span>{{stats.currentStreak>=day?'已达成':'待达成'}}</span></article></div><div class="achievement-facts"><article><span>最长连续无烟</span><b>{{stats.longestStreak}} 天</b></article><article><span>累计记录</span><b>{{stats.recordedDays}} 天</b></article></div></template>
+ <template v-else-if="stats"><div v-if="!previewStats&&family.isSupporter&&family.quitterMembers.length>1" class="achievement-switch"><button v-for="member in family.quitterMembers" :key="member.userId" :aria-pressed="family.selectedQuitterId===member.userId" @click="family.selectQuitter(member.userId)">{{member.nickname}}</button></div><section class="achievement-hero"><div class="achievement-copy"><span>当前连续无烟</span><strong>{{stats.currentStreak}}<small>天</small></strong><p>{{next?`下一个里程碑 · ${next} 天`:'已达成全部现有里程碑'}}</p></div><AchievementSeal :day="latest??1" :earned="Boolean(latest)" hero/></section><div class="achievement-badges"><article v-for="day in days" :key="day" :class="{'is-earned':stats.currentStreak>=day}"><AchievementSeal :day="day" :earned="stats.currentStreak>=day"/><h2>{{day}} 天</h2><span>{{stats.currentStreak>=day?'已达成':'待达成'}}</span></article></div><div class="achievement-facts"><article><span>最长连续无烟</span><b>{{stats.longestStreak}} 天</b></article><article><span>累计记录</span><b>{{stats.recordedDays}} 天</b></article></div></template>
  <div v-else class="optical-state">暂无戒烟记录</div>
 </main></template>
 

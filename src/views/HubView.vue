@@ -49,6 +49,8 @@ watch(()=>route.path,path=>{
   if(path===hubJourney.origin&&needsClosing){++operation;needsClosing=false;opening.value=false;scene?.cancelOpening();hubJourney.transitioning=false;hubJourney.mode='idle';requestAnimationFrame(()=>host.value?.querySelector<HTMLElement>('.hub-interaction')?.focus({preventScroll:true}))}
 })
 function motionChanged() { scene?.setReducedMotion(Boolean(media?.matches)) }
+// Keep the last crystal frame behind the panel, without competing with its WebGL scene.
+watch(()=>hubJourney.mode,mode=>scene?.setPaused(mode==='module'))
 function sceneFailed(){++operation;opening.value=false;closing.value=false;hubJourney.transitioning=false;hubJourney.mode='idle';unavailable.value=true;ready.value=false;scene?.dispose();scene=undefined}
 onMounted(async () => {
   window.addEventListener('keydown',escape)
@@ -68,6 +70,7 @@ onMounted(async () => {
     const created = await createHubAssetScene(host.value, { view, stage, scheme, photons, density, animatePreview, reducedMotion: media.matches, onInteraction:interactionChanged, onTransition:(progress,anchor)=>{hubJourney.progress=progress;hubJourney.anchor=anchor}, onFailure:sceneFailed })
     if (disposed) { created.dispose(); return }
     scene = created
+    scene.setPaused(hubJourney.mode==='module')
     ready.value = true
   } catch (error) { if(import.meta.env.DEV) console.error('Hub scene initialization failed',error instanceof Error?error.stack:error);unavailable.value = true }
 })

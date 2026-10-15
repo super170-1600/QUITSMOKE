@@ -197,6 +197,8 @@ export async function createHubAssetScene(host: HTMLElement, options: Options): 
   }
   function tick(now:number) { frame=0;if(!document.hidden&&!paused)render(now);else last=now;if(!disposed&&!paused&&!frame&&(morphTween||interaction.active||(!reduced&&(!options.view||options.animatePreview))))frame=requestAnimationFrame(tick) }
   function wake(){if(!frame&&!disposed&&!paused){last=performance.now();frame=requestAnimationFrame(tick)}}
+  function visibilityChanged(){if(document.hidden){cancelAnimationFrame(frame);frame=0}else wake()}
+  document.addEventListener('visibilitychange',visibilityChanged)
   function resize(){const w=host.clientWidth,h=host.clientHeight;if(disposed||!w||!h)return;camera.aspect=w/h;camera.position.set(0,.9,Math.max(8.7,5.8/(2*Math.tan(THREE.MathUtils.degToRad(16))*camera.aspect)));camera.lookAt(0,-.05,0);camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(devicePixelRatio,w<700?1.4:1.75));renderer.setSize(w,h);render(performance.now())}
   function lost(event:Event){event.preventDefault();resetOpening();options.onFailure()}
   renderer.domElement.addEventListener('webglcontextlost',lost)
@@ -208,6 +210,6 @@ export async function createHubAssetScene(host: HTMLElement, options: Options): 
     focusFace(id){interaction.focusFace(id)},
     setPhotons(enabled,density){photonsEnabled=enabled&&stage==='D';photons.setEnabled(photonsEnabled);externalAssets.forEach(o=>o.visible=photonsEnabled);if(density!==undefined)photons.setDensity(density);render(performance.now())},
     setReducedMotion(value){reduced=value;render(performance.now());if(!value)wake()},
-    dispose(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);interaction.dispose();surface.remove();observer.disconnect();renderer.domElement.removeEventListener('webglcontextlost',lost);const geometries=new Set<THREE.BufferGeometry>();scene.traverse(o=>{const mesh=o as THREE.Mesh;if(mesh.geometry)geometries.add(mesh.geometry);if(mesh.material)(Array.isArray(mesh.material)?mesh.material:[mesh.material]).forEach(m=>sourceMaterials.add(m))});geometries.forEach(g=>g.dispose());sourceMaterials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());photons.dispose();dissipation.dispose();background.dispose();shadowMap.dispose();env.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove()},
+    dispose(){if(disposed)return;disposed=true;document.removeEventListener('visibilitychange',visibilityChanged);cancelAnimationFrame(frame);interaction.dispose();surface.remove();observer.disconnect();renderer.domElement.removeEventListener('webglcontextlost',lost);const geometries=new Set<THREE.BufferGeometry>();scene.traverse(o=>{const mesh=o as THREE.Mesh;if(mesh.geometry)geometries.add(mesh.geometry);if(mesh.material)(Array.isArray(mesh.material)?mesh.material:[mesh.material]).forEach(m=>sourceMaterials.add(m))});geometries.forEach(g=>g.dispose());sourceMaterials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());photons.dispose();dissipation.dispose();background.dispose();shadowMap.dispose();env.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove()},
   }
 }

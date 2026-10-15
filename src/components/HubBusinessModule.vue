@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent,reactive,ref,watch } from 'vue'
+import { computed, defineAsyncComponent,reactive,ref,watch,type AsyncComponentLoader } from 'vue'
 import {useRoute,useRouter} from 'vue-router'
 import {moods,moodLabels,type DailyMood} from '@/utils/dailyPulse'
 import type { HubFaceId } from '@/config/hubModules'
@@ -9,6 +9,9 @@ import { useFamilyStore } from '@/stores/family'
 import { hubModuleDestination } from '@/visuals/hubModuleRoutes'
 import { useDisplayMode } from '@/composables/useDisplayMode'
 import '@/styles/hubModules.css'
+import ModuleLoadError from './ModuleLoadError.vue'
+import ModuleLoading from './ModuleLoading.vue'
+const asyncModule=(loader:AsyncComponentLoader)=>defineAsyncComponent({loader,timeout:20000,delay:150,loadingComponent:ModuleLoading,errorComponent:ModuleLoadError,suspensible:false})
 const props=defineProps<{face:HubFaceId;preview?:boolean}>()
 const route=useRoute(),router=useRouter(),presetEditor=ref(false),presetBusy=ref(false)
 const presetValues=reactive({days:28,daily:0,craving:3,nickname:'预览用户',role:'quitter' as 'quitter'|'supporter',members:2 as 0|1|2,mood:'calm' as DailyMood})
@@ -22,11 +25,11 @@ async function applyPreset(){if(presetBusy.value)return;presetBusy.value=true;tr
 async function restoreReal(){if(presetBusy.value)return;presetBusy.value=true;try{const query={...route.query};delete query.localPreset;delete query.presetRevision;await router.push({query})}finally{presetBusy.value=false}}
 const label=computed(()=>hubModules.find(m=>m.id===props.face)?.label)
 const components={
- checkin:defineAsyncComponent(()=>import('@/views/CheckinView.vue')),
- progress:defineAsyncComponent(()=>import('@/features/insights/views/InsightsPage.vue')),
- achievements:defineAsyncComponent(()=>import('@/views/AchievementsView.vue')),
- support:defineAsyncComponent(()=>import('@/features/constellation/views/FamilySpace.vue')),
- profile:defineAsyncComponent(()=>import('@/views/ProfileView.vue')),
+ checkin:asyncModule(()=>import('@/views/CheckinView.vue')),
+ progress:asyncModule(()=>import('@/features/insights/views/InsightsPage.vue')),
+ achievements:asyncModule(()=>import('@/views/AchievementsView.vue')),
+ support:asyncModule(()=>import('@/features/constellation/views/FamilySpace.vue')),
+ profile:asyncModule(()=>import('@/views/ProfileView.vue')),
 }
 const previewComponents=import.meta.env.DEV?{
  checkin:defineAsyncComponent(()=>import('@/views/PulseDemoView.vue')),

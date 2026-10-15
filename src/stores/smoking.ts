@@ -63,6 +63,9 @@ export const useSmokingStore = defineStore('smoking', () => {
   const statisticsLoadedForUser = ref<string | null>(null)
   const statisticsDate = ref<string | null>(null)
   const authStore = useAuthStore()
+  let cacheRevision = 0
+  const changedDates = new Map<string, number>()
+  function markDateChanged(date: string) { changedDates.set(date, ++cacheRevision) }
 
   const hasSmokingProfile = computed(() => smokingProfile.value !== null)
 
@@ -121,6 +124,7 @@ export const useSmokingStore = defineStore('smoking', () => {
     if (!userId) throw new Error('登录状态已失效，请重新登录。')
     loading.value = true
     const revision = captureAccountScope()
+    const readingAt = cacheRevision
     try {
       const profile = await ensureSmokingProfileLoaded()
       if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) return statistics.value
@@ -130,7 +134,14 @@ export const useSmokingStore = defineStore('smoking', () => {
       } else {
         const rows = await getCheckinsBetween(profile.quitStartDate, today)
         if (!isAccountScopeCurrent(revision) || authStore.user?.id !== userId) return statistics.value
-        checkins.value = rows.map(toCheckinModel)
+        // History is loaded in the background; preserve reads/writes confirmed after it began.
+        const next = new Map(rows.map(row => { const model=toCheckinModel(row);return [model.checkinDate,model] as const }))
+        for(const [date,changedAt] of changedDates){
+          if(changedAt<=readingAt)continue
+          const current=checkins.value.find(item=>item.checkinDate===date)
+          if(current)next.set(date,current);else next.delete(date)
+        }
+        checkins.value = [...next.values()].sort((a,b)=>a.checkinDate.localeCompare(b.checkinDate))
       }
       statisticsLoadedForUser.value = userId
       statisticsDate.value = today
@@ -178,6 +189,7 @@ export const useSmokingStore = defineStore('smoking', () => {
     const row=await getCheckinByDate(date)
     if(!isAccountScopeCurrent(revision)||authStore.user?.id!==userId)throw new Error('登录账号已切换，请重新操作。')
     if(row){const model=toCheckinModel(row);updateCachedCheckin(model);if(date===getLocalDateString())todayCheckin.value=model;return model}
+    markDateChanged(date)
     checkins.value=checkins.value.filter(item=>item.checkinDate!==date)
     if(date===getLocalDateString())todayCheckin.value=null
     if(statistics.value)recalculateStatistics()
@@ -257,6 +269,7 @@ export const useSmokingStore = defineStore('smoking', () => {
   }
 
   function updateCachedCheckin(checkin: CheckinModel) {
+    markDateChanged(checkin.checkinDate)
     const index = checkins.value.findIndex((item) => item.checkinDate === checkin.checkinDate)
     if (index === -1) checkins.value.push(checkin)
     else checkins.value[index] = checkin
@@ -264,6 +277,7 @@ export const useSmokingStore = defineStore('smoking', () => {
   }
 
   function reset() {
+    changedDates.clear();cacheRevision=0
     smokingProfile.value = null
     todayCheckin.value = null
     checkins.value = []

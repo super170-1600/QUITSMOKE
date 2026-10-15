@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import {resizeSurface} from '@/visuals/resizeSurface'
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
 import {HDRLoader} from 'three/addons/loaders/HDRLoader.js'
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
@@ -146,7 +147,7 @@ export async function createConstellation(host:HTMLElement,options:StudyOptions,
  function pose(){const aspect=host.clientWidth/Math.max(1,host.clientHeight);camera.position.set(current.view==='side'?5:0,4.1,Math.max(10.3,8/(2*Math.tan(THREE.MathUtils.degToRad(18.5))*aspect)));camera.lookAt(0,1.1,0);controls.update()}
  function draw(){
   if(disposed||paused||document.hidden||!host.clientWidth||!host.clientHeight)return
-  camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight,false);scene.updateMatrixWorld(true)
+  if(resizeSurface(renderer,host.clientWidth,host.clientHeight)){camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix()}scene.updateMatrixWorld(true)
   const targets:StudyTarget[]=[]
   function target(id:string,position:THREE.Vector3,label:string){const p=position.clone().project(camera);if(p.z<1&&p.z>-1)targets.push({id,label,x:(p.x+1)*host.clientWidth/2,y:(1-p.y)*host.clientHeight/2})}
   if(current.layers.core)target('core',new THREE.Vector3(0,1.3,0),current.supporters?'生命核心':'生命核心 · 视觉样板')
